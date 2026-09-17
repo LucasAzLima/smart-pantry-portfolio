@@ -11,7 +11,7 @@ export function PantryDemo() {
   const clearItems = usePantryStore((state) => state.clearItems);
 
   const handleAdd = () => {
-    addItem(name);
+    addItem({ name });
     setName("");
   };
 
