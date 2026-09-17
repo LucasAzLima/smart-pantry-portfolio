@@ -3,7 +3,7 @@
 Monorepo using npm workspaces:
 
 - `packages/web` — Next.js App Router app
-- `packages/ui` — shared React components (`@smart-pantry/ui`)
+- `packages/ui` — shared React components (`@smart-pantry/ui`) + Storybook
 
 ## Rules
 
@@ -12,5 +12,6 @@ Monorepo using npm workspaces:
 3. Shared UI belongs in `@smart-pantry/ui`; `web` consumes it.
 4. Client state in `web` uses Zustand.
 5. Tests use Jest + React Testing Library.
+6. New UI components ship with colocated Storybook stories (skill: `ui-component-with-storybook`).
 
 See `.cursor/rules/` for detailed Cursor rules and `packages/web/AGENTS.md` for Next.js version-specific notes.
