@@ -38,12 +38,14 @@ export interface AddItemModalProps {
 export function AddItemModal({ open, onClose }: AddItemModalProps) {
   const { t } = useTranslation();
   const addItem = usePantryStore((state) => state.addItem);
+  const isMutating = usePantryStore((state) => state.isMutating);
 
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [unit, setUnit] = useState<PantryUnit>("units");
   const [category, setCategory] = useState<PantryCategory>("pantry");
   const [expiryDate, setExpiryDate] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetForm = () => {
     setName("");
@@ -54,21 +56,26 @@ export function AddItemModal({ open, onClose }: AddItemModalProps) {
   };
 
   const handleClose = () => {
+    if (isSubmitting) {
+      return;
+    }
+
     resetForm();
     onClose();
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const trimmedName = name.trim();
-    if (!trimmedName) {
+    if (!trimmedName || isSubmitting) {
       return;
     }
 
     const parsedQuantity = Number(quantity);
+    setIsSubmitting(true);
 
-    addItem({
+    const succeeded = await addItem({
       name: trimmedName,
       quantity: Number.isFinite(parsedQuantity) ? parsedQuantity : undefined,
       unit,
@@ -76,9 +83,17 @@ export function AddItemModal({ open, onClose }: AddItemModalProps) {
       expiryDate,
     });
 
+    setIsSubmitting(false);
+
+    if (!succeeded) {
+      return;
+    }
+
     resetForm();
     onClose();
   };
+
+  const busy = isSubmitting || isMutating;
 
   return (
     <Modal
@@ -87,10 +102,15 @@ export function AddItemModal({ open, onClose }: AddItemModalProps) {
       title={t("modal.addItemTitle")}
       footer={
         <>
-          <Button type="button" variant="secondary" onClick={handleClose}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleClose}
+            disabled={busy}
+          >
             {t("modal.cancel")}
           </Button>
-          <Button type="submit" form="add-item-form">
+          <Button type="submit" form="add-item-form" isLoading={busy}>
             {t("form.addItem")}
           </Button>
         </>
@@ -98,7 +118,9 @@ export function AddItemModal({ open, onClose }: AddItemModalProps) {
     >
       <form
         id="add-item-form"
-        onSubmit={handleSubmit}
+        onSubmit={(event) => {
+          void handleSubmit(event);
+        }}
         className="flex flex-col gap-4"
         aria-label={t("form.ariaLabel")}
       >
@@ -117,6 +139,7 @@ export function AddItemModal({ open, onClose }: AddItemModalProps) {
             placeholder={t("form.namePlaceholder")}
             required
             autoComplete="off"
+            disabled={busy}
           />
         </div>
 
@@ -137,6 +160,7 @@ export function AddItemModal({ open, onClose }: AddItemModalProps) {
               onChange={(event) => setQuantity(event.target.value)}
               placeholder="1"
               required
+              disabled={busy}
             />
           </div>
 
@@ -152,6 +176,7 @@ export function AddItemModal({ open, onClose }: AddItemModalProps) {
               value={unit}
               onChange={(event) => setUnit(event.target.value as PantryUnit)}
               className={selectClassName}
+              disabled={busy}
             >
               {UNITS.map((option) => (
                 <option key={option} value={option}>
@@ -175,6 +200,7 @@ export function AddItemModal({ open, onClose }: AddItemModalProps) {
                 setCategory(event.target.value as PantryCategory)
               }
               className={selectClassName}
+              disabled={busy}
             >
               {CATEGORIES.map((option) => (
                 <option key={option} value={option}>
@@ -196,6 +222,7 @@ export function AddItemModal({ open, onClose }: AddItemModalProps) {
               type="date"
               value={expiryDate}
               onChange={(event) => setExpiryDate(event.target.value)}
+              disabled={busy}
             />
           </div>
         </div>

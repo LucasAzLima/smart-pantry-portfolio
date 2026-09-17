@@ -6,6 +6,7 @@ import { useTranslation } from "@/i18n/useTranslation";
 export interface RemoveItemModalProps {
   open: boolean;
   itemName: string;
+  isLoading?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -13,6 +14,7 @@ export interface RemoveItemModalProps {
 export function RemoveItemModal({
   open,
   itemName,
+  isLoading = false,
   onCancel,
   onConfirm,
 }: RemoveItemModalProps) {
@@ -25,10 +27,15 @@ export function RemoveItemModal({
       title={t("modal.removeItemTitle")}
       footer={
         <>
-          <Button type="button" variant="secondary" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onCancel}
+            disabled={isLoading}
+          >
             {t("modal.cancel")}
           </Button>
-          <Button type="button" onClick={onConfirm}>
+          <Button type="button" onClick={onConfirm} isLoading={isLoading}>
             {t("modal.removeConfirm")}
           </Button>
         </>
