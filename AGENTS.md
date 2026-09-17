@@ -13,6 +13,8 @@ Monorepo using npm workspaces:
 4. Client state in `web` uses Zustand.
 5. Tests use Jest + React Testing Library.
 6. New UI components ship with colocated Storybook stories (skill: `ui-component-with-storybook`).
+7. Place `packages/web` code per `.cursor/rules/web-architecture.mdc` (skill: `web-layering`).
+8. Next.js/React performance: skill `vercel-react-best-practices` (rule: `web-performance`).
 
 See `.cursor/rules/` for detailed Cursor rules and `packages/web/AGENTS.md` for Next.js version-specific notes.
 
@@ -24,6 +26,8 @@ See `.cursor/rules/` for detailed Cursor rules and `packages/web/AGENTS.md` for 
 | `local-commits` | Create local commits from that plan. Never pushes. |
 | `pull-request-description` | Draft `.pr-description.md`. Does not open a PR. |
 | `ui-component-with-storybook` | New shared UI component + stories + tests + public export. |
+| `web-layering` | RSC pages, client islands, Zustand, shared UI boundaries. |
+| `vercel-react-best-practices` | Vercel React/Next performance rules (read by category, not all at once). |
 
 ## Shortcuts
 

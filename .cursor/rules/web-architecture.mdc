@@ -1,0 +1,33 @@
+---
+description: Where to place new files and how to structure features in packages/web
+globs: packages/web/**
+alwaysApply: false
+---
+
+# Web architecture
+
+Reference layout: `app/page.tsx` (RSC) → `app/components/PantryDemo.tsx` (client) → `store/usePantryStore.ts` → `@smart-pantry/ui`.
+
+## Decision tree
+
+**New route or page:** `app/<route>/page.tsx` (Server Component by default). Layouts stay in `app/**/layout.tsx`.
+
+**New UI:**
+- Reusable across screens / Storybook → `@smart-pantry/ui` (skill: `ui-component-with-storybook`)
+- Used only in this app, composed from shared UI → `app/components/`
+- Do not copy Button-like primitives into `web`
+
+**New client state:** Zustand store in `store/use<Name>Store.ts`. Select slices (see `PantryDemo`). Never put Zustand in `packages/ui`.
+
+**New React hook:** reusable across pages → `hooks/use<Name>.ts` (create the folder when needed). Tied to one component → keep it colocated.
+
+**Pure logic (no React):** `lib/<domain>.ts` (create when needed). Do not grow `page.tsx` with parsers or validators.
+
+**HTTP / server data:** not in the repo yet. When added, keep fetch in Server Components, Route Handlers, or `lib/` — never inside `@smart-pantry/ui`. Do not add React Query/SWR unless the feature needs client cache.
+
+## What NOT to do
+
+- Do not mark a page `"use client"` only to use a store — extract a client island.
+- Do not create Context providers for data that belongs in Zustand.
+- Do not fetch or import Next.js APIs from `packages/ui`.
+- Do not put feature screens under `packages/ui`.

@@ -1,0 +1,18 @@
+---
+description: Apply Vercel React/Next performance guidance when working in packages/web
+globs: packages/web/**
+alwaysApply: false
+---
+
+# Web performance
+
+When writing, reviewing, or refactoring React/Next.js in `packages/web`, follow `.cursor/skills/vercel-react-best-practices`.
+
+Read individual rule files by category (`async-`, `bundle-`, `server-`, `rerender-`). Do not load all 70 rules at once.
+
+## This repo
+
+- Import public UI from `@smart-pantry/ui`. That barrel is the package API, not a third-party icon kit.
+- For heavy third-party barrels (e.g. `lucide-react`), prefer Next `optimizePackageImports` — add it when those deps exist.
+- Client state is Zustand, not SWR. Ignore `client-swr-dedup` until a client fetch cache is introduced.
+- Prefer Server Components and small client islands (`web-layering`) before micro-optimizing re-renders.
