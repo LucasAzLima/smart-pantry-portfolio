@@ -5,10 +5,17 @@ describe("translate", () => {
   it("resolves keys for English", () => {
     expect(translate("en-US", "app.title")).toBe("Smart Pantry");
     expect(translate("en-US", "form.addItem")).toBe("Add item");
+    expect(translate("en-US", "form.addNewItem")).toBe("Add new item");
+    expect(translate("en-US", "modal.addItemTitle")).toBe("Add new item");
+    expect(translate("en-US", "modal.removeItemTitle")).toBe("Remove item");
+    expect(translate("en-US", "dashboard.heading")).toBe("Dashboard");
   });
 
   it("resolves keys for Portuguese", () => {
     expect(translate("pt-BR", "form.addItem")).toBe("Adicionar item");
+    expect(translate("pt-BR", "form.addNewItem")).toBe("Adicionar novo item");
+    expect(translate("pt-BR", "modal.cancel")).toBe("Cancelar");
+    expect(translate("pt-BR", "modal.removeConfirm")).toBe("Remover");
     expect(translate("pt-BR", "inventory.empty")).toContain("despensa");
   });
 
@@ -23,6 +30,10 @@ describe("translate", () => {
     expect(translate("pt-BR", "item.removeAria", { name: "Leite" })).toBe(
       "Remover Leite",
     );
+
+    expect(
+      translate("en-US", "modal.removeItemMessage", { name: "Olive oil" }),
+    ).toBe('Are you sure you want to remove "Olive oil" from your pantry?');
   });
 
   it("leaves unknown placeholders intact", () => {
