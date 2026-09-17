@@ -26,6 +26,8 @@ export interface AddPantryItemInput {
 interface PantryState {
   items: PantryItem[];
   addItem: (input: AddPantryItemInput) => void;
+  removeItem: (id: string) => void;
+  updateItemQuantity: (id: string, quantity: number) => void;
   clearItems: () => void;
 }
 
@@ -131,6 +133,22 @@ export const usePantryStore = create<PantryState>()(
               expiryDate: normalizeExpiryDate(input.expiryDate),
             },
           ],
+        }));
+      },
+      removeItem: (id) => {
+        set((state) => ({
+          items: state.items.filter((item) => item.id !== id),
+        }));
+      },
+      updateItemQuantity: (id, quantity) => {
+        if (typeof quantity !== "number" || !Number.isFinite(quantity) || quantity <= 0) {
+          return;
+        }
+
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === id ? { ...item, quantity } : item,
+          ),
         }));
       },
       clearItems: () => set({ items: [] }),
