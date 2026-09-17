@@ -46,7 +46,9 @@ describe("usePantryStore", () => {
       unit: "units",
       category: "pantry",
       expiryDate: "",
+      userId: null,
     });
+    expect(result.current.items[0].createdAt).toEqual(expect.any(String));
   });
 
   it("stores provided quantity, unit, category, and expiry date", () => {
@@ -218,15 +220,17 @@ describe("usePantryStore", () => {
         items: [
           {
             id: "item-1",
+            userId: "user-1",
             name: "Rice",
             quantity: 1,
             unit: "kg",
             category: "pantry",
             expiryDate: "2027-01-01",
+            createdAt: "2026-01-01T00:00:00.000Z",
           },
         ],
       },
-      version: 1,
+      version: 2,
     };
     localStorage.setItem(PANTRY_STORAGE_KEY, JSON.stringify(persisted));
 
@@ -237,11 +241,13 @@ describe("usePantryStore", () => {
     expect(usePantryStore.getState().items).toEqual([
       {
         id: "item-1",
+        userId: "user-1",
         name: "Rice",
         quantity: 1,
         unit: "kg",
         category: "pantry",
         expiryDate: "2027-01-01",
+        createdAt: "2026-01-01T00:00:00.000Z",
       },
     ]);
   });
@@ -261,15 +267,16 @@ describe("usePantryStore", () => {
       await usePantryStore.persist.rehydrate();
     });
 
-    expect(usePantryStore.getState().items).toEqual([
-      {
-        id: "legacy-1",
-        name: "Butter",
-        quantity: 1,
-        unit: "units",
-        category: "pantry",
-        expiryDate: "",
-      },
-    ]);
+    const [item] = usePantryStore.getState().items;
+    expect(item).toMatchObject({
+      id: "legacy-1",
+      userId: null,
+      name: "Butter",
+      quantity: 1,
+      unit: "units",
+      category: "pantry",
+      expiryDate: "",
+    });
+    expect(item.createdAt).toEqual(expect.any(String));
   });
 });

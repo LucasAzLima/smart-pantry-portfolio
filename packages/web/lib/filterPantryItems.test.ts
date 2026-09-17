@@ -4,35 +4,43 @@ import { filterPantryItems } from "./filterPantryItems";
 const sampleItems: PantryItem[] = [
   {
     id: "1",
+    userId: null,
     name: "Olive oil",
     quantity: 1,
     unit: "l",
     category: "pantry",
     expiryDate: "2027-01-01",
+    createdAt: "2026-01-01T00:00:00.000Z",
   },
   {
     id: "2",
+    userId: null,
     name: "Milk",
     quantity: 2,
     unit: "l",
     category: "fridge",
     expiryDate: "2026-09-20",
+    createdAt: "2026-01-01T00:00:00.000Z",
   },
   {
     id: "3",
+    userId: null,
     name: "Frozen peas",
     quantity: 500,
     unit: "g",
     category: "freezer",
     expiryDate: "",
+    createdAt: "2026-01-01T00:00:00.000Z",
   },
   {
     id: "4",
+    userId: null,
     name: "Oat milk",
     quantity: 1,
     unit: "l",
     category: "fridge",
     expiryDate: "2026-10-01",
+    createdAt: "2026-01-01T00:00:00.000Z",
   },
 ];
 
