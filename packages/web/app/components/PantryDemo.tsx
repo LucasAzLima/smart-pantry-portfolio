@@ -197,11 +197,8 @@ export function PantryDemo() {
         </div>
 
         {items.length === 0 ? (
-          <div className="flex flex-col items-start gap-4 rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-10">
+          <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-10">
             <p className="text-sm text-zinc-500">{t("inventory.empty")}</p>
-            <Button type="button" onClick={() => setIsAddModalOpen(true)}>
-              {t("form.addNewItem")}
-            </Button>
           </div>
         ) : (
           <>
