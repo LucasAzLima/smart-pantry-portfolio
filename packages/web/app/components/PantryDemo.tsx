@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Card, Input } from "@smart-pantry/ui";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AddItemModal } from "./AddItemModal";
 import { RemoveItemModal } from "./RemoveItemModal";
 import {
@@ -107,13 +107,23 @@ export function PantryDemo() {
     id: string;
     name: string;
   } | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 
   const items = usePantryStore((state) => state.items);
+  const status = usePantryStore((state) => state.status);
+  const error = usePantryStore((state) => state.error);
+  const isMutating = usePantryStore((state) => state.isMutating);
+  const fetchItems = usePantryStore((state) => state.fetchItems);
   const removeItem = usePantryStore((state) => state.removeItem);
   const updateItemQuantity = usePantryStore((state) => state.updateItemQuantity);
   const clearItems = usePantryStore((state) => state.clearItems);
+  const clearError = usePantryStore((state) => state.clearError);
+
+  useEffect(() => {
+    void fetchItems();
+  }, [fetchItems]);
 
   const filteredItems = useMemo(
     () =>
@@ -146,23 +156,62 @@ export function PantryDemo() {
     return t("inventory.countMany", { count: items.length });
   })();
 
+  const mutationError =
+    status === "idle" && error !== null
+      ? error
+      : null;
+
+  const handleConfirmRemove = async () => {
+    if (!itemPendingRemoval) {
+      return;
+    }
+
+    setIsRemoving(true);
+    const succeeded = await removeItem(itemPendingRemoval.id);
+    setIsRemoving(false);
+
+    if (succeeded) {
+      setItemPendingRemoval(null);
+    }
+  };
+
+  const handleClearAll = () => {
+    void clearItems();
+  };
+
   return (
     <div className="flex w-full flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-3">
-          <Button type="button" onClick={() => setIsAddModalOpen(true)}>
+          <Button
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            disabled={status === "loading" || status === "error"}
+          >
             {t("form.addNewItem")}
           </Button>
           <Button
             type="button"
             variant="outline"
-            onClick={clearItems}
-            disabled={items.length === 0}
+            onClick={handleClearAll}
+            disabled={items.length === 0 || isMutating || status === "loading"}
           >
             {t("form.clearAll")}
           </Button>
         </div>
       </div>
+
+      {mutationError ? (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          role="alert"
+        >
+          <p>{t("inventory.actionError")}</p>
+          <Button type="button" size="sm" variant="outline" onClick={clearError}>
+            {t("inventory.dismissError")}
+          </Button>
+        </div>
+      ) : null}
 
       <AddItemModal
         open={isAddModalOpen}
@@ -172,12 +221,14 @@ export function PantryDemo() {
       <RemoveItemModal
         open={itemPendingRemoval !== null}
         itemName={itemPendingRemoval?.name ?? ""}
-        onCancel={() => setItemPendingRemoval(null)}
-        onConfirm={() => {
-          if (itemPendingRemoval) {
-            removeItem(itemPendingRemoval.id);
+        isLoading={isRemoving}
+        onCancel={() => {
+          if (!isRemoving) {
             setItemPendingRemoval(null);
           }
+        }}
+        onConfirm={() => {
+          void handleConfirmRemove();
         }}
       />
 
@@ -196,7 +247,18 @@ export function PantryDemo() {
           <p className="text-sm text-zinc-500">{itemCountLabel}</p>
         </div>
 
-        {items.length === 0 ? (
+        {status === "loading" ? (
+          <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-10">
+            <p className="text-sm text-zinc-500">{t("inventory.loading")}</p>
+          </div>
+        ) : status === "error" ? (
+          <div className="flex flex-col items-start gap-4 rounded-2xl border border-red-200 bg-red-50 px-6 py-10">
+            <p className="text-sm text-red-800">{t("inventory.loadError")}</p>
+            <Button type="button" onClick={() => void fetchItems()}>
+              {t("inventory.retry")}
+            </Button>
+          </div>
+        ) : items.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-10">
             <p className="text-sm text-zinc-500">{t("inventory.empty")}</p>
           </div>
@@ -311,10 +373,13 @@ export function PantryDemo() {
                               aria-label={t("item.decreaseAria", {
                                 name: item.name,
                               })}
-                              disabled={item.quantity <= 1}
-                              onClick={() =>
-                                updateItemQuantity(item.id, item.quantity - 1)
-                              }
+                              disabled={item.quantity <= 1 || isMutating}
+                              onClick={() => {
+                                void updateItemQuantity(
+                                  item.id,
+                                  item.quantity - 1,
+                                );
+                              }}
                             >
                               −
                             </Button>
@@ -328,9 +393,13 @@ export function PantryDemo() {
                               aria-label={t("item.increaseAria", {
                                 name: item.name,
                               })}
-                              onClick={() =>
-                                updateItemQuantity(item.id, item.quantity + 1)
-                              }
+                              disabled={isMutating}
+                              onClick={() => {
+                                void updateItemQuantity(
+                                  item.id,
+                                  item.quantity + 1,
+                                );
+                              }}
                             >
                               +
                             </Button>
@@ -342,6 +411,7 @@ export function PantryDemo() {
                             aria-label={t("item.removeAria", {
                               name: item.name,
                             })}
+                            disabled={isMutating}
                             onClick={() =>
                               setItemPendingRemoval({
                                 id: item.id,
