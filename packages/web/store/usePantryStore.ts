@@ -1,4 +1,7 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
+
+export const PANTRY_STORAGE_KEY = "smart-pantry-storage";
 
 export interface PantryItem {
   id: string;
@@ -11,23 +14,35 @@ interface PantryState {
   clearItems: () => void;
 }
 
-export const usePantryStore = create<PantryState>((set) => ({
-  items: [],
-  addItem: (name) => {
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      return;
-    }
+interface PersistedPantryState {
+  items: PantryItem[];
+}
 
-    set((state) => ({
-      items: [
-        ...state.items,
-        {
-          id: crypto.randomUUID(),
-          name: trimmedName,
-        },
-      ],
-    }));
-  },
-  clearItems: () => set({ items: [] }),
-}));
+export const usePantryStore = create<PantryState>()(
+  persist(
+    (set) => ({
+      items: [],
+      addItem: (name) => {
+        const trimmedName = name.trim();
+        if (!trimmedName) {
+          return;
+        }
+
+        set((state) => ({
+          items: [
+            ...state.items,
+            {
+              id: crypto.randomUUID(),
+              name: trimmedName,
+            },
+          ],
+        }));
+      },
+      clearItems: () => set({ items: [] }),
+    }),
+    {
+      name: PANTRY_STORAGE_KEY,
+      partialize: (state): PersistedPantryState => ({ items: state.items }),
+    },
+  ),
+);
