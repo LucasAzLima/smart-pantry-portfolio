@@ -54,6 +54,8 @@ export function PantryDemo() {
 
   const items = usePantryStore((state) => state.items);
   const addItem = usePantryStore((state) => state.addItem);
+  const removeItem = usePantryStore((state) => state.removeItem);
+  const updateItemQuantity = usePantryStore((state) => state.updateItemQuantity);
   const clearItems = usePantryStore((state) => state.clearItems);
 
   const resetForm = () => {
@@ -249,6 +251,49 @@ export function PantryDemo() {
                       <dd>{formatExpiryDate(item.expiryDate)}</dd>
                     </div>
                   </dl>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div
+                      className="inline-flex items-center gap-1"
+                      role="group"
+                      aria-label={`Adjust quantity for ${item.name}`}
+                    >
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        aria-label={`Decrease quantity of ${item.name}`}
+                        disabled={item.quantity <= 1}
+                        onClick={() =>
+                          updateItemQuantity(item.id, item.quantity - 1)
+                        }
+                      >
+                        −
+                      </Button>
+                      <span className="min-w-10 text-center text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                        {item.quantity}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        aria-label={`Increase quantity of ${item.name}`}
+                        onClick={() =>
+                          updateItemQuantity(item.id, item.quantity + 1)
+                        }
+                      >
+                        +
+                      </Button>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Remove ${item.name}`}
+                      onClick={() => removeItem(item.id)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
                 </Card>
               </li>
             ))}

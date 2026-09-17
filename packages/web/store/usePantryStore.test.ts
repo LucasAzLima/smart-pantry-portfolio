@@ -104,6 +104,79 @@ describe("usePantryStore", () => {
     expect(result.current.items).toHaveLength(0);
   });
 
+  it("removes a single item by id", () => {
+    const { result } = renderHook(() => usePantryStore());
+
+    act(() => {
+      result.current.addItem({ name: "Milk" });
+      result.current.addItem({ name: "Eggs" });
+    });
+
+    const [firstItem, secondItem] = result.current.items;
+
+    act(() => {
+      result.current.removeItem(firstItem.id);
+    });
+
+    expect(result.current.items).toEqual([secondItem]);
+  });
+
+  it("ignores removeItem for unknown ids", () => {
+    const { result } = renderHook(() => usePantryStore());
+
+    act(() => {
+      result.current.addItem({ name: "Milk" });
+    });
+
+    const before = result.current.items;
+
+    act(() => {
+      result.current.removeItem("missing-id");
+    });
+
+    expect(result.current.items).toEqual(before);
+  });
+
+  it("updates item quantity immutably", () => {
+    const { result } = renderHook(() => usePantryStore());
+
+    act(() => {
+      result.current.addItem({ name: "Rice", quantity: 2 });
+    });
+
+    const itemId = result.current.items[0].id;
+    const previousItem = result.current.items[0];
+
+    act(() => {
+      result.current.updateItemQuantity(itemId, 5);
+    });
+
+    expect(result.current.items[0]).toMatchObject({
+      id: itemId,
+      name: "Rice",
+      quantity: 5,
+    });
+    expect(result.current.items[0]).not.toBe(previousItem);
+  });
+
+  it("ignores non-positive or invalid quantity updates", () => {
+    const { result } = renderHook(() => usePantryStore());
+
+    act(() => {
+      result.current.addItem({ name: "Flour", quantity: 3 });
+    });
+
+    const itemId = result.current.items[0].id;
+
+    act(() => {
+      result.current.updateItemQuantity(itemId, 0);
+      result.current.updateItemQuantity(itemId, -1);
+      result.current.updateItemQuantity(itemId, Number.NaN);
+    });
+
+    expect(result.current.items[0].quantity).toBe(3);
+  });
+
   it("writes items to localStorage", () => {
     const { result } = renderHook(() => usePantryStore());
 
