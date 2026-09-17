@@ -15,3 +15,20 @@ Monorepo using npm workspaces:
 6. New UI components ship with colocated Storybook stories (skill: `ui-component-with-storybook`).
 
 See `.cursor/rules/` for detailed Cursor rules and `packages/web/AGENTS.md` for Next.js version-specific notes.
+
+## Agent skills
+
+| Skill | Role |
+| --- | --- |
+| `conventional-commits` | Suggest a commit plan (message + files). Does not commit. |
+| `local-commits` | Create local commits from that plan. Never pushes. |
+| `pull-request-description` | Draft `.pr-description.md`. Does not open a PR. |
+| `ui-component-with-storybook` | New shared UI component + stories + tests + public export. |
+
+## Shortcuts
+
+| You say | Agent does |
+| --- | --- |
+| how to commit / split commits / `/conventional-commits` | Plan only |
+| commit / commita / `/local-commits` | Local commits. If on `main`, create a feature branch first; never commit on `main`. |
+| PR description / `/pr-description` | Write `.pr-description.md` |
