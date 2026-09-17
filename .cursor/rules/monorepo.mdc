@@ -1,0 +1,12 @@
+---
+description: Core monorepo guidelines and coding standards
+alwaysApply: true
+---
+
+# Monorepo Guidelines
+
+- Architecture: npm workspaces with `packages/ui` (`@smart-pantry/ui`) and `packages/web`.
+- Stack: Next.js App Router (`web`), React (`ui`), TypeScript strict, Tailwind CSS, Zustand (`web`), Jest + RTL.
+- Never use `any`. Define explicit interfaces and types.
+- All code, comments, commit messages, and documentation must be in **English**.
+- Keep components decoupled and accessible. The `web` app consumes UI from `@smart-pantry/ui`.

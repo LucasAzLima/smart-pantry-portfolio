@@ -1,0 +1,15 @@
+# Monorepo Guidelines & Tech Stack
+- **Architecture:** Monorepo using npm workspaces (`packages/ui` and `packages/web`).
+- **Frameworks:** Next.js (App Router) for `web`, React for `ui`.
+- **Language:** TypeScript (Strict mode enabled across all packages).
+- **Styling:** Tailwind CSS.
+- **State Management:** Zustand (in `web`).
+- **Testing:** Jest and React Testing Library.
+
+# Rules for Code Generation
+1. **TypeScript First:** Never use `any`. Always define explicit interfaces/types.
+2. **Language:** All code, comments, commit messages, and documentation must be in **English**.
+3. **Modularity:** Keep components decoupled, accessible, and clean. The `web` app should consume components from `packages/ui` (`@smart-pantry/ui`).
+
+# Cursor
+Detailed rules live in `.cursor/rules/`. Prefer those for agent context.

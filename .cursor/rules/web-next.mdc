@@ -1,0 +1,13 @@
+---
+description: Next.js web app conventions
+globs: packages/web/**
+alwaysApply: false
+---
+
+# Web Package (`packages/web`)
+
+- Use the Next.js App Router. Before inventing APIs, check `AGENTS.md` and local Next docs under `node_modules/next/dist/docs/`.
+- Put client state in Zustand stores under `store/`.
+- Import shared UI from `@smart-pantry/ui`, not by duplicating components.
+- Prefer Server Components by default; mark `"use client"` only when interactivity or hooks are required.
+- Keep TypeScript strict; never use `any`.

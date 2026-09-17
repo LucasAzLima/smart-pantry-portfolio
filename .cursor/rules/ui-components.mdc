@@ -1,0 +1,13 @@
+---
+description: Shared UI package conventions
+globs: packages/ui/**
+alwaysApply: false
+---
+
+# UI Package (`packages/ui`)
+
+- Build accessible, decoupled React components with explicit TypeScript props.
+- Export public components from `src/index.ts`.
+- Prefer composition over deep prop drilling.
+- Do not depend on Next.js or Zustand; keep this package reusable.
+- Style with Tailwind-friendly className props when needed; avoid app-specific logic.

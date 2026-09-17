@@ -1,0 +1,19 @@
+{
+  "name": "smart-pantry-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Smart Pantry portfolio monorepo",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w web",
+    "build": "npm run build -w web",
+    "lint": "npm run lint -w web",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
