@@ -1,11 +1,15 @@
 "use client";
 
 import { Badge, Button, Card, Input, type BadgeVariant } from "@smart-pantry/ui";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import {
   calculateExpiryStatus,
   type ExpiryStatus,
 } from "@/lib/expiryUtils";
+import {
+  filterPantryItems,
+  type CategoryFilter,
+} from "@/lib/filterPantryItems";
 import {
   type PantryCategory,
   type PantryUnit,
@@ -14,8 +18,21 @@ import {
 
 const UNITS: readonly PantryUnit[] = ["units", "kg", "g", "l", "ml"];
 const CATEGORIES: readonly PantryCategory[] = ["pantry", "fridge", "freezer"];
+const CATEGORY_FILTERS: readonly CategoryFilter[] = [
+  "all",
+  "pantry",
+  "fridge",
+  "freezer",
+];
 
 const CATEGORY_LABELS: Record<PantryCategory, string> = {
+  pantry: "Pantry",
+  fridge: "Fridge",
+  freezer: "Freezer",
+};
+
+const CATEGORY_FILTER_LABELS: Record<CategoryFilter, string> = {
+  all: "All",
   pantry: "Pantry",
   fridge: "Fridge",
   freezer: "Freezer",
@@ -74,12 +91,26 @@ export function PantryDemo() {
   const [unit, setUnit] = useState<PantryUnit>("units");
   const [category, setCategory] = useState<PantryCategory>("pantry");
   const [expiryDate, setExpiryDate] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 
   const items = usePantryStore((state) => state.items);
   const addItem = usePantryStore((state) => state.addItem);
   const removeItem = usePantryStore((state) => state.removeItem);
   const updateItemQuantity = usePantryStore((state) => state.updateItemQuantity);
   const clearItems = usePantryStore((state) => state.clearItems);
+
+  const filteredItems = useMemo(
+    () =>
+      filterPantryItems(items, {
+        query: searchQuery,
+        category: categoryFilter,
+      }),
+    [items, searchQuery, categoryFilter],
+  );
+
+  const hasActiveFilters =
+    searchQuery.trim().length > 0 || categoryFilter !== "all";
 
   const resetForm = () => {
     setName("");
@@ -237,7 +268,13 @@ export function PantryDemo() {
             Your pantry
           </h2>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            {items.length === 1 ? "1 item" : `${items.length} items`}
+            {items.length === 0
+              ? "0 items"
+              : hasActiveFilters
+                ? `${filteredItems.length} of ${items.length} items`
+                : items.length === 1
+                  ? "1 item"
+                  : `${items.length} items`}
           </p>
         </div>
 
@@ -246,84 +283,133 @@ export function PantryDemo() {
             No items yet. Add something to your pantry.
           </p>
         ) : (
-          <ul className="flex flex-col gap-3" aria-label="Pantry items">
-            {items.map((item) => (
-              <li key={item.id}>
-                <Card padding="md" className="flex flex-col gap-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">
-                      {item.name}
-                    </h3>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="neutral">
-                        {CATEGORY_LABELS[item.category]}
-                      </Badge>
-                      <ExpiryStatusBadge expiryDate={item.expiryDate} />
-                    </div>
-                  </div>
-                  <dl className="grid gap-1 text-sm text-zinc-600 dark:text-zinc-400 sm:grid-cols-2">
-                    <div className="flex gap-1">
-                      <dt className="font-medium text-zinc-700 dark:text-zinc-300">
-                        Quantity:
-                      </dt>
-                      <dd>
-                        {item.quantity} {item.unit}
-                      </dd>
-                    </div>
-                    <div className="flex gap-1">
-                      <dt className="font-medium text-zinc-700 dark:text-zinc-300">
-                        Expires:
-                      </dt>
-                      <dd>{formatExpiryDate(item.expiryDate)}</dd>
-                    </div>
-                  </dl>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div
-                      className="inline-flex items-center gap-1"
-                      role="group"
-                      aria-label={`Adjust quantity for ${item.name}`}
-                    >
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        aria-label={`Decrease quantity of ${item.name}`}
-                        disabled={item.quantity <= 1}
-                        onClick={() =>
-                          updateItemQuantity(item.id, item.quantity - 1)
-                        }
-                      >
-                        −
-                      </Button>
-                      <span className="min-w-10 text-center text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                        {item.quantity}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        aria-label={`Increase quantity of ${item.name}`}
-                        onClick={() =>
-                          updateItemQuantity(item.id, item.quantity + 1)
-                        }
-                      >
-                        +
-                      </Button>
-                    </div>
+          <>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
+                <label
+                  htmlFor="pantry-search"
+                  className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                >
+                  Search
+                </label>
+                <Input
+                  id="pantry-search"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search by name"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div
+                className="flex flex-wrap gap-2"
+                role="group"
+                aria-label="Filter by category"
+              >
+                {CATEGORY_FILTERS.map((filter) => {
+                  const isSelected = categoryFilter === filter;
+                  return (
                     <Button
+                      key={filter}
                       type="button"
-                      variant="ghost"
                       size="sm"
-                      aria-label={`Remove ${item.name}`}
-                      onClick={() => removeItem(item.id)}
+                      variant={isSelected ? "primary" : "outline"}
+                      aria-pressed={isSelected}
+                      onClick={() => setCategoryFilter(filter)}
                     >
-                      Remove
+                      {CATEGORY_FILTER_LABELS[filter]}
                     </Button>
-                  </div>
-                </Card>
-              </li>
-            ))}
-          </ul>
+                  );
+                })}
+              </div>
+            </div>
+
+            {filteredItems.length === 0 ? (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                No items match your search or filters.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-3" aria-label="Pantry items">
+                {filteredItems.map((item) => (
+                  <li key={item.id}>
+                    <Card padding="md" className="flex flex-col gap-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">
+                          {item.name}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="neutral">
+                            {CATEGORY_LABELS[item.category]}
+                          </Badge>
+                          <ExpiryStatusBadge expiryDate={item.expiryDate} />
+                        </div>
+                      </div>
+                      <dl className="grid gap-1 text-sm text-zinc-600 dark:text-zinc-400 sm:grid-cols-2">
+                        <div className="flex gap-1">
+                          <dt className="font-medium text-zinc-700 dark:text-zinc-300">
+                            Quantity:
+                          </dt>
+                          <dd>
+                            {item.quantity} {item.unit}
+                          </dd>
+                        </div>
+                        <div className="flex gap-1">
+                          <dt className="font-medium text-zinc-700 dark:text-zinc-300">
+                            Expires:
+                          </dt>
+                          <dd>{formatExpiryDate(item.expiryDate)}</dd>
+                        </div>
+                      </dl>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div
+                          className="inline-flex items-center gap-1"
+                          role="group"
+                          aria-label={`Adjust quantity for ${item.name}`}
+                        >
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            aria-label={`Decrease quantity of ${item.name}`}
+                            disabled={item.quantity <= 1}
+                            onClick={() =>
+                              updateItemQuantity(item.id, item.quantity - 1)
+                            }
+                          >
+                            −
+                          </Button>
+                          <span className="min-w-10 text-center text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                            {item.quantity}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            aria-label={`Increase quantity of ${item.name}`}
+                            onClick={() =>
+                              updateItemQuantity(item.id, item.quantity + 1)
+                            }
+                          >
+                            +
+                          </Button>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Remove ${item.name}`}
+                          onClick={() => removeItem(item.id)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </Card>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </section>
     </div>
