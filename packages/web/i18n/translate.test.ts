@@ -9,6 +9,7 @@ describe("translate", () => {
     expect(translate("en-US", "modal.addItemTitle")).toBe("Add new item");
     expect(translate("en-US", "modal.removeItemTitle")).toBe("Remove item");
     expect(translate("en-US", "dashboard.heading")).toBe("Dashboard");
+    expect(translate("en-US", "auth.signIn")).toBe("Sign in");
   });
 
   it("resolves keys for Portuguese", () => {
@@ -17,6 +18,7 @@ describe("translate", () => {
     expect(translate("pt-BR", "modal.cancel")).toBe("Cancelar");
     expect(translate("pt-BR", "modal.removeConfirm")).toBe("Remover");
     expect(translate("pt-BR", "inventory.empty")).toContain("despensa");
+    expect(translate("pt-BR", "auth.signOut")).toBe("Sair");
   });
 
   it("interpolates params", () => {
