@@ -1,27 +1,46 @@
 @import "tailwindcss";
 @source "../../ui/src";
 
+/* Keep the SaaS dashboard on a light theme even when the OS prefers dark. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: #f4f6f8;
+  --foreground: #18181b;
+  --surface: #ffffff;
+  --surface-muted: #eef1f4;
+  --border: #e4e7eb;
+  --accent: #0f766e;
+  --accent-hover: #0d9488;
+  --category-pantry: #d97706;
+  --category-pantry-soft: #fffbeb;
+  --category-fridge: #0ea5e9;
+  --category-fridge-soft: #f0f9ff;
+  --category-freezer: #6366f1;
+  --category-freezer-soft: #eef2ff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-category-pantry: var(--category-pantry);
+  --color-category-pantry-soft: var(--category-pantry-soft);
+  --color-category-fridge: var(--category-fridge);
+  --color-category-fridge-soft: var(--category-fridge-soft);
+  --color-category-freezer: var(--category-freezer);
+  --color-category-freezer-soft: var(--category-freezer-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
