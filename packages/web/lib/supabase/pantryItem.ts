@@ -10,7 +10,7 @@ import type {
  */
 export interface PantryItem {
   id: string;
-  /** Maps to `user_id`. Null while the item exists only in local storage. */
+  /** Maps to `user_id`. Null only for incomplete client drafts. */
   userId: string | null;
   name: string;
   quantity: number;
