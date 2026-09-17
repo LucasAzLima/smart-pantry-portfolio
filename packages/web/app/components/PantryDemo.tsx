@@ -10,6 +10,8 @@ import {
   filterPantryItems,
   type CategoryFilter,
 } from "@/lib/filterPantryItems";
+import { useTranslation } from "@/i18n/useTranslation";
+import type { MessageKey } from "@/i18n/messages";
 import {
   type PantryCategory,
   type PantryUnit,
@@ -25,42 +27,46 @@ const CATEGORY_FILTERS: readonly CategoryFilter[] = [
   "freezer",
 ];
 
-const CATEGORY_LABELS: Record<PantryCategory, string> = {
-  pantry: "Pantry",
-  fridge: "Fridge",
-  freezer: "Freezer",
+const UNIT_MESSAGE_KEYS: Record<PantryUnit, MessageKey> = {
+  units: "unit.units",
+  kg: "unit.kg",
+  g: "unit.g",
+  l: "unit.l",
+  ml: "unit.ml",
 };
 
-const CATEGORY_FILTER_LABELS: Record<CategoryFilter, string> = {
-  all: "All",
-  pantry: "Pantry",
-  fridge: "Fridge",
-  freezer: "Freezer",
+const CATEGORY_MESSAGE_KEYS: Record<PantryCategory, MessageKey> = {
+  pantry: "category.pantry",
+  fridge: "category.fridge",
+  freezer: "category.freezer",
 };
 
-const UNIT_LABELS: Record<PantryUnit, string> = {
-  units: "Units",
-  kg: "Kilograms (kg)",
-  g: "Grams (g)",
-  l: "Liters (l)",
-  ml: "Milliliters (ml)",
+const CATEGORY_FILTER_MESSAGE_KEYS: Record<CategoryFilter, MessageKey> = {
+  all: "filter.all",
+  pantry: "category.pantry",
+  fridge: "category.fridge",
+  freezer: "category.freezer",
 };
 
 const EXPIRY_BADGE: Record<
   Exclude<ExpiryStatus, "none">,
-  { variant: BadgeVariant; label: string }
+  { variant: BadgeVariant; labelKey: MessageKey }
 > = {
-  expired: { variant: "danger", label: "Expired" },
-  warning: { variant: "warning", label: "Expiring soon" },
-  fresh: { variant: "success", label: "Fresh" },
+  expired: { variant: "danger", labelKey: "expiry.expired" },
+  warning: { variant: "warning", labelKey: "expiry.warning" },
+  fresh: { variant: "success", labelKey: "expiry.fresh" },
 };
 
 const selectClassName =
   "h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:focus-visible:ring-zinc-100";
 
-function formatExpiryDate(expiryDate: string): string {
+function formatExpiryDate(
+  expiryDate: string,
+  locale: string,
+  noExpiryLabel: string,
+): string {
   if (!expiryDate) {
-    return "No expiry date";
+    return noExpiryLabel;
   }
 
   const parsed = new Date(`${expiryDate}T00:00:00`);
@@ -68,7 +74,7 @@ function formatExpiryDate(expiryDate: string): string {
     return expiryDate;
   }
 
-  return parsed.toLocaleDateString(undefined, {
+  return parsed.toLocaleDateString(locale, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -76,16 +82,18 @@ function formatExpiryDate(expiryDate: string): string {
 }
 
 function ExpiryStatusBadge({ expiryDate }: { expiryDate: string }) {
+  const { t } = useTranslation();
   const status = calculateExpiryStatus(expiryDate);
   if (status === "none") {
     return null;
   }
 
   const badge = EXPIRY_BADGE[status];
-  return <Badge variant={badge.variant}>{badge.label}</Badge>;
+  return <Badge variant={badge.variant}>{t(badge.labelKey)}</Badge>;
 }
 
 export function PantryDemo() {
+  const { t, locale } = useTranslation();
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [unit, setUnit] = useState<PantryUnit>("units");
@@ -111,6 +119,25 @@ export function PantryDemo() {
 
   const hasActiveFilters =
     searchQuery.trim().length > 0 || categoryFilter !== "all";
+
+  const itemCountLabel = (() => {
+    if (items.length === 0) {
+      return t("inventory.countZero");
+    }
+
+    if (hasActiveFilters) {
+      return t("inventory.countFiltered", {
+        filtered: filteredItems.length,
+        total: items.length,
+      });
+    }
+
+    if (items.length === 1) {
+      return t("inventory.countOne");
+    }
+
+    return t("inventory.countMany", { count: items.length });
+  })();
 
   const resetForm = () => {
     setName("");
@@ -146,21 +173,21 @@ export function PantryDemo() {
       <form
         onSubmit={handleSubmit}
         className="flex flex-col gap-4"
-        aria-label="Add pantry item"
+        aria-label={t("form.ariaLabel")}
       >
         <div className="flex flex-col gap-2">
           <label
             htmlFor="item-name"
             className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
           >
-            Item name
+            {t("form.name")}
           </label>
           <Input
             id="item-name"
             type="text"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="e.g. Olive oil"
+            placeholder={t("form.namePlaceholder")}
             required
             autoComplete="off"
           />
@@ -172,7 +199,7 @@ export function PantryDemo() {
               htmlFor="item-quantity"
               className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
             >
-              Quantity
+              {t("form.quantity")}
             </label>
             <Input
               id="item-quantity"
@@ -191,7 +218,7 @@ export function PantryDemo() {
               htmlFor="item-unit"
               className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
             >
-              Unit
+              {t("form.unit")}
             </label>
             <select
               id="item-unit"
@@ -201,7 +228,7 @@ export function PantryDemo() {
             >
               {UNITS.map((option) => (
                 <option key={option} value={option}>
-                  {UNIT_LABELS[option]}
+                  {t(UNIT_MESSAGE_KEYS[option])}
                 </option>
               ))}
             </select>
@@ -212,7 +239,7 @@ export function PantryDemo() {
               htmlFor="item-category"
               className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
             >
-              Category
+              {t("form.category")}
             </label>
             <select
               id="item-category"
@@ -224,7 +251,7 @@ export function PantryDemo() {
             >
               {CATEGORIES.map((option) => (
                 <option key={option} value={option}>
-                  {CATEGORY_LABELS[option]}
+                  {t(CATEGORY_MESSAGE_KEYS[option])}
                 </option>
               ))}
             </select>
@@ -235,7 +262,7 @@ export function PantryDemo() {
               htmlFor="item-expiry"
               className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
             >
-              Expiry date
+              {t("form.expiry")}
             </label>
             <Input
               id="item-expiry"
@@ -247,14 +274,14 @@ export function PantryDemo() {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <Button type="submit">Add item</Button>
+          <Button type="submit">{t("form.addItem")}</Button>
           <Button
             type="button"
             variant="secondary"
             onClick={clearItems}
             disabled={items.length === 0}
           >
-            Clear all
+            {t("form.clearAll")}
           </Button>
         </div>
       </form>
@@ -265,22 +292,16 @@ export function PantryDemo() {
             id="pantry-items-heading"
             className="text-lg font-semibold text-zinc-900 dark:text-zinc-50"
           >
-            Your pantry
+            {t("inventory.heading")}
           </h2>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            {items.length === 0
-              ? "0 items"
-              : hasActiveFilters
-                ? `${filteredItems.length} of ${items.length} items`
-                : items.length === 1
-                  ? "1 item"
-                  : `${items.length} items`}
+            {itemCountLabel}
           </p>
         </div>
 
         {items.length === 0 ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            No items yet. Add something to your pantry.
+            {t("inventory.empty")}
           </p>
         ) : (
           <>
@@ -290,14 +311,14 @@ export function PantryDemo() {
                   htmlFor="pantry-search"
                   className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
                 >
-                  Search
+                  {t("search.label")}
                 </label>
                 <Input
                   id="pantry-search"
                   type="search"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search by name"
+                  placeholder={t("search.placeholder")}
                   autoComplete="off"
                 />
               </div>
@@ -305,7 +326,7 @@ export function PantryDemo() {
               <div
                 className="flex flex-wrap gap-2"
                 role="group"
-                aria-label="Filter by category"
+                aria-label={t("filter.groupAria")}
               >
                 {CATEGORY_FILTERS.map((filter) => {
                   const isSelected = categoryFilter === filter;
@@ -318,7 +339,7 @@ export function PantryDemo() {
                       aria-pressed={isSelected}
                       onClick={() => setCategoryFilter(filter)}
                     >
-                      {CATEGORY_FILTER_LABELS[filter]}
+                      {t(CATEGORY_FILTER_MESSAGE_KEYS[filter])}
                     </Button>
                   );
                 })}
@@ -327,10 +348,10 @@ export function PantryDemo() {
 
             {filteredItems.length === 0 ? (
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                No items match your search or filters.
+                {t("inventory.noMatches")}
               </p>
             ) : (
-              <ul className="flex flex-col gap-3" aria-label="Pantry items">
+              <ul className="flex flex-col gap-3" aria-label={t("inventory.listAria")}>
                 {filteredItems.map((item) => (
                   <li key={item.id}>
                     <Card padding="md" className="flex flex-col gap-3">
@@ -340,7 +361,7 @@ export function PantryDemo() {
                         </h3>
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="neutral">
-                            {CATEGORY_LABELS[item.category]}
+                            {t(CATEGORY_MESSAGE_KEYS[item.category])}
                           </Badge>
                           <ExpiryStatusBadge expiryDate={item.expiryDate} />
                         </div>
@@ -348,7 +369,7 @@ export function PantryDemo() {
                       <dl className="grid gap-1 text-sm text-zinc-600 dark:text-zinc-400 sm:grid-cols-2">
                         <div className="flex gap-1">
                           <dt className="font-medium text-zinc-700 dark:text-zinc-300">
-                            Quantity:
+                            {t("item.quantity")}
                           </dt>
                           <dd>
                             {item.quantity} {item.unit}
@@ -356,22 +377,32 @@ export function PantryDemo() {
                         </div>
                         <div className="flex gap-1">
                           <dt className="font-medium text-zinc-700 dark:text-zinc-300">
-                            Expires:
+                            {t("item.expires")}
                           </dt>
-                          <dd>{formatExpiryDate(item.expiryDate)}</dd>
+                          <dd>
+                            {formatExpiryDate(
+                              item.expiryDate,
+                              locale,
+                              t("item.noExpiry"),
+                            )}
+                          </dd>
                         </div>
                       </dl>
                       <div className="flex flex-wrap items-center gap-2">
                         <div
                           className="inline-flex items-center gap-1"
                           role="group"
-                          aria-label={`Adjust quantity for ${item.name}`}
+                          aria-label={t("item.adjustQuantityAria", {
+                            name: item.name,
+                          })}
                         >
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            aria-label={`Decrease quantity of ${item.name}`}
+                            aria-label={t("item.decreaseAria", {
+                              name: item.name,
+                            })}
                             disabled={item.quantity <= 1}
                             onClick={() =>
                               updateItemQuantity(item.id, item.quantity - 1)
@@ -386,7 +417,9 @@ export function PantryDemo() {
                             type="button"
                             variant="outline"
                             size="sm"
-                            aria-label={`Increase quantity of ${item.name}`}
+                            aria-label={t("item.increaseAria", {
+                              name: item.name,
+                            })}
                             onClick={() =>
                               updateItemQuantity(item.id, item.quantity + 1)
                             }
@@ -398,10 +431,10 @@ export function PantryDemo() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          aria-label={`Remove ${item.name}`}
+                          aria-label={t("item.removeAria", { name: item.name })}
                           onClick={() => removeItem(item.id)}
                         >
-                          Remove
+                          {t("item.remove")}
                         </Button>
                       </div>
                     </Card>
