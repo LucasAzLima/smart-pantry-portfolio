@@ -11,3 +11,5 @@ alwaysApply: false
 - Import shared UI from `@smart-pantry/ui`, not by duplicating components.
 - Prefer Server Components by default; mark `"use client"` only when interactivity or hooks are required.
 - Keep TypeScript strict; never use `any`.
+- File placement: `.cursor/rules/web-architecture.mdc`. Feature layering: skill `web-layering`.
+- Performance: `.cursor/rules/web-performance.mdc` and skill `vercel-react-best-practices`.
