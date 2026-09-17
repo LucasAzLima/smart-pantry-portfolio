@@ -1,14 +1,15 @@
 # Smart Pantry
 
-Portfolio web app for tracking a household pantry: items, quantities, storage categories, and expiry dates. Inventory lives in the browser (Zustand + `localStorage`); there is no backend yet.
+Portfolio web app for tracking a household pantry: items, quantities, storage categories, and expiry dates. Inventory is stored in **Supabase** (`pantry_items`) and scoped to the signed-in user. Language preference still lives in the browser via Zustand + `localStorage`.
 
 ## What it does
 
+- Sign up / sign in with email and password (Supabase Auth)
 - Add items with name, quantity, unit (`units`, `kg`, `g`, `l`, `ml`), category (Pantry / Fridge / Freezer), and optional expiry date
 - Search by name and filter by category
 - Adjust quantity in place, remove an item (with confirmation), or clear the whole list
 - Show expiry status: **Expired**, **Expiring soon** (within 7 days), or **Fresh**
-- Persist inventory and language preference in `localStorage`
+- Persist inventory in Supabase (RLS by `user_id`); persist language preference in `localStorage`
 - Switch UI language between English (`en-US`) and Portuguese (`pt-BR`)
 
 ## Structure
@@ -17,21 +18,23 @@ Portfolio web app for tracking a household pantry: items, quantities, storage ca
 packages/
   web/   Next.js App Router app (product)
   ui/    Shared React components (@smart-pantry/ui) + Storybook
+supabase/
+  migrations/   SQL schema for pantry_items + RLS
 ```
 
 | Package | Path | Description |
 | --- | --- | --- |
-| `web` | `packages/web` | Dashboard, Zustand stores, i18n, domain helpers |
+| `web` | `packages/web` | Dashboard, auth, Zustand stores, Supabase clients, i18n |
 | `@smart-pantry/ui` | `packages/ui` | Accessible primitives: Button, Input, Card, Badge, Modal |
 
 ### Web layout
 
 ```
 packages/web/
-  app/           Routes and client islands (header, dashboard, modals)
-  store/         Zustand stores (pantry items, locale)
+  app/           Routes and client islands (header, dashboard, modals, login)
+  store/         Zustand stores (pantry items via Supabase, locale)
   i18n/          Dictionaries and translation helpers
-  lib/           Pure logic (expiry status, inventory filters)
+  lib/           Pure logic + Supabase clients/mappers
 ```
 
 Server Components stay at the route boundary (`app/page.tsx`). Interactive UI is isolated in client components under `app/components/`. Shared visuals come from `@smart-pantry/ui`; app-only screens stay in `web`.
@@ -42,7 +45,8 @@ Server Components stay at the route boundary (`app/page.tsx`). Interactive UI is
 - **Next.js 16** App Router (`web`)
 - **React 19**
 - **Tailwind CSS 4**
-- **Zustand 5** with persist middleware (`web` only)
+- **Zustand 5** (`web` — pantry is in-memory + Supabase; locale uses persist)
+- **Supabase** (Auth + Postgres + RLS)
 - **Jest** + React Testing Library
 - **Storybook 10** (Vite) for `@smart-pantry/ui`
 
@@ -52,10 +56,45 @@ Requires **Node.js 20+** and npm (workspaces).
 
 ```bash
 npm install
+cp packages/web/.env.local.example packages/web/.env.local
+```
+
+Fill in `packages/web/.env.local` with your Supabase project URL and anon key (Dashboard → Project Settings → API). Apply SQL migrations under `supabase/migrations/` in the Supabase SQL editor (or CLI) before using the app.
+
+```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). Unauthenticated users are redirected to `/login`.
+
+### Environment variables
+
+| Variable | Where | Description |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | `packages/web/.env.local` and Vercel | Project origin only, e.g. `https://xxxx.supabase.co` (no `/rest/v1`) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `packages/web/.env.local` and Vercel | Public anon key from Supabase API settings |
+
+See [`packages/web/.env.local.example`](packages/web/.env.local.example).
+
+### Deploying to Vercel
+
+1. Import the GitHub repository in [Vercel](https://vercel.com).
+2. Use the monorepo settings below so npm workspaces resolve correctly.
+3. Add Environment Variables for **Production** (and Preview if desired):
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. In the Supabase Dashboard → Authentication → URL configuration, add your Vercel URL(s) to **Site URL** / **Redirect URLs**.
+5. Deploy. Confirm sign-in and a full pantry CRUD cycle against the live project.
+
+Recommended Vercel settings:
+
+| Setting | Value |
+| --- | --- |
+| Framework Preset | Next.js |
+| Root Directory | `packages/web` |
+| Install Command | `cd ../.. && npm install` |
+| Build Command | `cd ../.. && npm run build -w web` |
+| Output Directory | leave default |
 
 ### Component catalog (Storybook)
 
