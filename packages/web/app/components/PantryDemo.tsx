@@ -1,7 +1,9 @@
 "use client";
 
-import { Badge, Button, Card, Input, type BadgeVariant } from "@smart-pantry/ui";
-import { useMemo, useState, type FormEvent } from "react";
+import { Button, Card, Input } from "@smart-pantry/ui";
+import { useMemo, useState } from "react";
+import { AddItemModal } from "./AddItemModal";
+import { RemoveItemModal } from "./RemoveItemModal";
 import {
   calculateExpiryStatus,
   type ExpiryStatus,
@@ -14,26 +16,15 @@ import { useTranslation } from "@/i18n/useTranslation";
 import type { MessageKey } from "@/i18n/messages";
 import {
   type PantryCategory,
-  type PantryUnit,
   usePantryStore,
 } from "@/store/usePantryStore";
 
-const UNITS: readonly PantryUnit[] = ["units", "kg", "g", "l", "ml"];
-const CATEGORIES: readonly PantryCategory[] = ["pantry", "fridge", "freezer"];
 const CATEGORY_FILTERS: readonly CategoryFilter[] = [
   "all",
   "pantry",
   "fridge",
   "freezer",
 ];
-
-const UNIT_MESSAGE_KEYS: Record<PantryUnit, MessageKey> = {
-  units: "unit.units",
-  kg: "unit.kg",
-  g: "unit.g",
-  l: "unit.l",
-  ml: "unit.ml",
-};
 
 const CATEGORY_MESSAGE_KEYS: Record<PantryCategory, MessageKey> = {
   pantry: "category.pantry",
@@ -48,17 +39,29 @@ const CATEGORY_FILTER_MESSAGE_KEYS: Record<CategoryFilter, MessageKey> = {
   freezer: "category.freezer",
 };
 
-const EXPIRY_BADGE: Record<
-  Exclude<ExpiryStatus, "none">,
-  { variant: BadgeVariant; labelKey: MessageKey }
-> = {
-  expired: { variant: "danger", labelKey: "expiry.expired" },
-  warning: { variant: "warning", labelKey: "expiry.warning" },
-  fresh: { variant: "success", labelKey: "expiry.fresh" },
+const CATEGORY_ACCENT_STYLES: Record<PantryCategory, string> = {
+  pantry: "bg-amber-500",
+  fridge: "bg-sky-500",
+  freezer: "bg-indigo-500",
 };
 
-const selectClassName =
-  "h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:focus-visible:ring-zinc-100";
+const CATEGORY_BADGE_STYLES: Record<PantryCategory, string> = {
+  pantry: "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200",
+  fridge: "bg-sky-50 text-sky-800 ring-1 ring-inset ring-sky-200",
+  freezer: "bg-indigo-50 text-indigo-800 ring-1 ring-inset ring-indigo-200",
+};
+
+const EXPIRY_LABEL_KEYS: Record<Exclude<ExpiryStatus, "none">, MessageKey> = {
+  expired: "expiry.expired",
+  warning: "expiry.warning",
+  fresh: "expiry.fresh",
+};
+
+const EXPIRY_BADGE_STYLES: Record<Exclude<ExpiryStatus, "none">, string> = {
+  expired: "bg-red-50 text-red-800 ring-1 ring-inset ring-red-200",
+  warning: "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200",
+  fresh: "bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200",
+};
 
 function formatExpiryDate(
   expiryDate: string,
@@ -88,22 +91,26 @@ function ExpiryStatusBadge({ expiryDate }: { expiryDate: string }) {
     return null;
   }
 
-  const badge = EXPIRY_BADGE[status];
-  return <Badge variant={badge.variant}>{t(badge.labelKey)}</Badge>;
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${EXPIRY_BADGE_STYLES[status]}`}
+    >
+      {t(EXPIRY_LABEL_KEYS[status])}
+    </span>
+  );
 }
 
 export function PantryDemo() {
   const { t, locale } = useTranslation();
-  const [name, setName] = useState("");
-  const [quantity, setQuantity] = useState("1");
-  const [unit, setUnit] = useState<PantryUnit>("units");
-  const [category, setCategory] = useState<PantryCategory>("pantry");
-  const [expiryDate, setExpiryDate] = useState("");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [itemPendingRemoval, setItemPendingRemoval] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 
   const items = usePantryStore((state) => state.items);
-  const addItem = usePantryStore((state) => state.addItem);
   const removeItem = usePantryStore((state) => state.removeItem);
   const updateItemQuantity = usePantryStore((state) => state.updateItemQuantity);
   const clearItems = usePantryStore((state) => state.clearItems);
@@ -139,177 +146,70 @@ export function PantryDemo() {
     return t("inventory.countMany", { count: items.length });
   })();
 
-  const resetForm = () => {
-    setName("");
-    setQuantity("1");
-    setUnit("units");
-    setCategory("pantry");
-    setExpiryDate("");
-  };
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      return;
-    }
-
-    const parsedQuantity = Number(quantity);
-
-    addItem({
-      name: trimmedName,
-      quantity: Number.isFinite(parsedQuantity) ? parsedQuantity : undefined,
-      unit,
-      category,
-      expiryDate,
-    });
-
-    resetForm();
-  };
-
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-4"
-        aria-label={t("form.ariaLabel")}
-      >
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="item-name"
-            className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-          >
-            {t("form.name")}
-          </label>
-          <Input
-            id="item-name"
-            type="text"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder={t("form.namePlaceholder")}
-            required
-            autoComplete="off"
-          />
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <label
-              htmlFor="item-quantity"
-              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-            >
-              {t("form.quantity")}
-            </label>
-            <Input
-              id="item-quantity"
-              type="number"
-              min={0.01}
-              step="any"
-              value={quantity}
-              onChange={(event) => setQuantity(event.target.value)}
-              placeholder="1"
-              required
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label
-              htmlFor="item-unit"
-              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-            >
-              {t("form.unit")}
-            </label>
-            <select
-              id="item-unit"
-              value={unit}
-              onChange={(event) => setUnit(event.target.value as PantryUnit)}
-              className={selectClassName}
-            >
-              {UNITS.map((option) => (
-                <option key={option} value={option}>
-                  {t(UNIT_MESSAGE_KEYS[option])}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label
-              htmlFor="item-category"
-              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-            >
-              {t("form.category")}
-            </label>
-            <select
-              id="item-category"
-              value={category}
-              onChange={(event) =>
-                setCategory(event.target.value as PantryCategory)
-              }
-              className={selectClassName}
-            >
-              {CATEGORIES.map((option) => (
-                <option key={option} value={option}>
-                  {t(CATEGORY_MESSAGE_KEYS[option])}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label
-              htmlFor="item-expiry"
-              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-            >
-              {t("form.expiry")}
-            </label>
-            <Input
-              id="item-expiry"
-              type="date"
-              value={expiryDate}
-              onChange={(event) => setExpiryDate(event.target.value)}
-            />
-          </div>
-        </div>
-
+    <div className="flex w-full flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-3">
-          <Button type="submit">{t("form.addItem")}</Button>
+          <Button type="button" onClick={() => setIsAddModalOpen(true)}>
+            {t("form.addNewItem")}
+          </Button>
           <Button
             type="button"
-            variant="secondary"
+            variant="outline"
             onClick={clearItems}
             disabled={items.length === 0}
           >
             {t("form.clearAll")}
           </Button>
         </div>
-      </form>
+      </div>
 
-      <section className="flex flex-col gap-3" aria-labelledby="pantry-items-heading">
+      <AddItemModal
+        open={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+      />
+
+      <RemoveItemModal
+        open={itemPendingRemoval !== null}
+        itemName={itemPendingRemoval?.name ?? ""}
+        onCancel={() => setItemPendingRemoval(null)}
+        onConfirm={() => {
+          if (itemPendingRemoval) {
+            removeItem(itemPendingRemoval.id);
+            setItemPendingRemoval(null);
+          }
+        }}
+      />
+
+      <section
+        id="inventory"
+        className="flex flex-col gap-4"
+        aria-labelledby="pantry-items-heading"
+      >
         <div className="flex items-baseline justify-between gap-3">
           <h2
             id="pantry-items-heading"
-            className="text-lg font-semibold text-zinc-900 dark:text-zinc-50"
+            className="text-lg font-semibold text-zinc-900"
           >
             {t("inventory.heading")}
           </h2>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            {itemCountLabel}
-          </p>
+          <p className="text-sm text-zinc-500">{itemCountLabel}</p>
         </div>
 
         {items.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            {t("inventory.empty")}
-          </p>
+          <div className="flex flex-col items-start gap-4 rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-10">
+            <p className="text-sm text-zinc-500">{t("inventory.empty")}</p>
+            <Button type="button" onClick={() => setIsAddModalOpen(true)}>
+              {t("form.addNewItem")}
+            </Button>
+          </div>
         ) : (
           <>
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex w-full max-w-md flex-col gap-2">
                 <label
                   htmlFor="pantry-search"
-                  className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                  className="text-sm font-medium text-zinc-700"
                 >
                   {t("search.label")}
                 </label>
@@ -347,95 +247,114 @@ export function PantryDemo() {
             </div>
 
             {filteredItems.length === 0 ? (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {t("inventory.noMatches")}
-              </p>
+              <p className="text-sm text-zinc-500">{t("inventory.noMatches")}</p>
             ) : (
-              <ul className="flex flex-col gap-3" aria-label={t("inventory.listAria")}>
+              <ul
+                className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+                aria-label={t("inventory.listAria")}
+              >
                 {filteredItems.map((item) => (
-                  <li key={item.id}>
-                    <Card padding="md" className="flex flex-col gap-3">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">
-                          {item.name}
-                        </h3>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="neutral">
-                            {t(CATEGORY_MESSAGE_KEYS[item.category])}
-                          </Badge>
-                          <ExpiryStatusBadge expiryDate={item.expiryDate} />
+                  <li key={item.id} className="min-w-0">
+                    <Card
+                      padding="none"
+                      className="relative flex h-full flex-col overflow-hidden border-zinc-200/90 bg-white shadow-sm"
+                    >
+                      <div
+                        className={`absolute inset-y-0 left-0 w-1.5 ${CATEGORY_ACCENT_STYLES[item.category]}`}
+                        aria-hidden="true"
+                      />
+                      <div className="flex h-full flex-col gap-3 bg-white p-5 pl-6">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <h3 className="text-base font-semibold tracking-tight text-zinc-900">
+                            {item.name}
+                          </h3>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CATEGORY_BADGE_STYLES[item.category]}`}
+                            >
+                              {t(CATEGORY_MESSAGE_KEYS[item.category])}
+                            </span>
+                            <ExpiryStatusBadge expiryDate={item.expiryDate} />
+                          </div>
                         </div>
-                      </div>
-                      <dl className="grid gap-1 text-sm text-zinc-600 dark:text-zinc-400 sm:grid-cols-2">
-                        <div className="flex gap-1">
-                          <dt className="font-medium text-zinc-700 dark:text-zinc-300">
-                            {t("item.quantity")}
-                          </dt>
-                          <dd>
-                            {item.quantity} {item.unit}
-                          </dd>
-                        </div>
-                        <div className="flex gap-1">
-                          <dt className="font-medium text-zinc-700 dark:text-zinc-300">
-                            {t("item.expires")}
-                          </dt>
-                          <dd>
-                            {formatExpiryDate(
-                              item.expiryDate,
-                              locale,
-                              t("item.noExpiry"),
-                            )}
-                          </dd>
-                        </div>
-                      </dl>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div
-                          className="inline-flex items-center gap-1"
-                          role="group"
-                          aria-label={t("item.adjustQuantityAria", {
-                            name: item.name,
-                          })}
-                        >
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            aria-label={t("item.decreaseAria", {
+                        <dl className="grid gap-1.5 text-sm text-zinc-600">
+                          <div className="flex gap-1">
+                            <dt className="font-medium text-zinc-500">
+                              {t("item.quantity")}
+                            </dt>
+                            <dd className="text-zinc-800">
+                              {item.quantity} {item.unit}
+                            </dd>
+                          </div>
+                          <div className="flex gap-1">
+                            <dt className="font-medium text-zinc-500">
+                              {t("item.expires")}
+                            </dt>
+                            <dd className="text-zinc-800">
+                              {formatExpiryDate(
+                                item.expiryDate,
+                                locale,
+                                t("item.noExpiry"),
+                              )}
+                            </dd>
+                          </div>
+                        </dl>
+                        <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
+                          <div
+                            className="inline-flex items-center gap-1"
+                            role="group"
+                            aria-label={t("item.adjustQuantityAria", {
                               name: item.name,
                             })}
-                            disabled={item.quantity <= 1}
-                            onClick={() =>
-                              updateItemQuantity(item.id, item.quantity - 1)
-                            }
                           >
-                            −
-                          </Button>
-                          <span className="min-w-10 text-center text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                            {item.quantity}
-                          </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              aria-label={t("item.decreaseAria", {
+                                name: item.name,
+                              })}
+                              disabled={item.quantity <= 1}
+                              onClick={() =>
+                                updateItemQuantity(item.id, item.quantity - 1)
+                              }
+                            >
+                              −
+                            </Button>
+                            <span className="min-w-10 text-center text-sm font-medium text-zinc-900">
+                              {item.quantity}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              aria-label={t("item.increaseAria", {
+                                name: item.name,
+                              })}
+                              onClick={() =>
+                                updateItemQuantity(item.id, item.quantity + 1)
+                              }
+                            >
+                              +
+                            </Button>
+                          </div>
                           <Button
                             type="button"
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            aria-label={t("item.increaseAria", {
+                            aria-label={t("item.removeAria", {
                               name: item.name,
                             })}
                             onClick={() =>
-                              updateItemQuantity(item.id, item.quantity + 1)
+                              setItemPendingRemoval({
+                                id: item.id,
+                                name: item.name,
+                              })
                             }
                           >
-                            +
+                            {t("item.remove")}
                           </Button>
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          aria-label={t("item.removeAria", { name: item.name })}
-                          onClick={() => removeItem(item.id)}
-                        >
-                          {t("item.remove")}
-                        </Button>
                       </div>
                     </Card>
                   </li>
