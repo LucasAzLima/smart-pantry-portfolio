@@ -1,7 +1,11 @@
 "use client";
 
-import { Badge, Button, Card, Input } from "@smart-pantry/ui";
+import { Badge, Button, Card, Input, type BadgeVariant } from "@smart-pantry/ui";
 import { useState, type FormEvent } from "react";
+import {
+  calculateExpiryStatus,
+  type ExpiryStatus,
+} from "@/lib/expiryUtils";
 import {
   type PantryCategory,
   type PantryUnit,
@@ -25,6 +29,15 @@ const UNIT_LABELS: Record<PantryUnit, string> = {
   ml: "Milliliters (ml)",
 };
 
+const EXPIRY_BADGE: Record<
+  Exclude<ExpiryStatus, "none">,
+  { variant: BadgeVariant; label: string }
+> = {
+  expired: { variant: "danger", label: "Expired" },
+  warning: { variant: "warning", label: "Expiring soon" },
+  fresh: { variant: "success", label: "Fresh" },
+};
+
 const selectClassName =
   "h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:focus-visible:ring-zinc-100";
 
@@ -43,6 +56,16 @@ function formatExpiryDate(expiryDate: string): string {
     month: "short",
     day: "numeric",
   });
+}
+
+function ExpiryStatusBadge({ expiryDate }: { expiryDate: string }) {
+  const status = calculateExpiryStatus(expiryDate);
+  if (status === "none") {
+    return null;
+  }
+
+  const badge = EXPIRY_BADGE[status];
+  return <Badge variant={badge.variant}>{badge.label}</Badge>;
 }
 
 export function PantryDemo() {
@@ -231,9 +254,12 @@ export function PantryDemo() {
                     <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">
                       {item.name}
                     </h3>
-                    <Badge variant="neutral">
-                      {CATEGORY_LABELS[item.category]}
-                    </Badge>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="neutral">
+                        {CATEGORY_LABELS[item.category]}
+                      </Badge>
+                      <ExpiryStatusBadge expiryDate={item.expiryDate} />
+                    </div>
                   </div>
                   <dl className="grid gap-1 text-sm text-zinc-600 dark:text-zinc-400 sm:grid-cols-2">
                     <div className="flex gap-1">
