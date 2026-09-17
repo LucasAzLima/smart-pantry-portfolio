@@ -20,7 +20,7 @@ export function LanguageSwitcher() {
 
   return (
     <div
-      className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 p-1 dark:border-zinc-700"
+      className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white p-1"
       role="group"
       aria-label={t("language.label")}
     >
