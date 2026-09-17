@@ -1,17 +1,43 @@
 # web
 
-Next.js App Router package for Smart Pantry. This is the product app: dashboard, client state, and i18n.
+Next.js App Router package for Smart Pantry. This is the product app: auth, dashboard, client state, and i18n.
 
-The app is a client-side pantry tracker (no API). Inventory and locale are persisted in `localStorage` via Zustand.
+Inventory is loaded and mutated through **Supabase** (`pantry_items`, RLS by authenticated `user_id`). Locale preference is persisted in `localStorage` via Zustand.
 
 ## Layout
 
 - `app/` — routes (RSC by default) and client islands under `app/components/`
-- `store/` — Zustand stores (`usePantryStore`, `useLocaleStore`)
+- `store/` — Zustand stores (`usePantryStore` ↔ Supabase, `useLocaleStore`)
 - `i18n/` — `en-US` / `pt-BR` dictionaries and `useTranslation`
-- `lib/` — domain helpers (expiry status, inventory filters)
+- `lib/` — domain helpers, Supabase clients (`lib/supabase/`), and auth helpers
+- `proxy.ts` — session refresh and auth redirects (Next.js 16 proxy)
 
 Shared UI is imported from [`@smart-pantry/ui`](../ui).
+
+## Environment
+
+Copy [`.env.local.example`](./.env.local.example) to `.env.local`:
+
+```bash
+cp .env.local.example .env.local
+```
+
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Project origin only (`https://xxxx.supabase.co`) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Anon/public key from Supabase → Project Settings → API |
+
+Apply migrations from [`../../supabase/migrations`](../../supabase/migrations) to your Supabase project before first use.
+
+### Vercel
+
+When deploying this package on Vercel from the monorepo:
+
+1. Set Root Directory to `packages/web` (or install/build from the repo root with `-w web`).
+2. Configure the same two `NEXT_PUBLIC_*` variables in the Vercel project settings for Production and Preview.
+3. Add the deployment URL to Supabase Auth redirect allowlists.
+
+See the [repository README](../../README.md#deploying-to-vercel) for the recommended install/build commands.
 
 ## Scripts
 
