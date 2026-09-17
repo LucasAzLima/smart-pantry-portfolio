@@ -16,6 +16,7 @@ import { useTranslation } from "@/i18n/useTranslation";
 import type { MessageKey } from "@/i18n/messages";
 import {
   type PantryCategory,
+  type PantryItem,
   usePantryStore,
 } from "@/store/usePantryStore";
 
@@ -103,6 +104,9 @@ function ExpiryStatusBadge({ expiryDate }: { expiryDate: string }) {
 export function PantryDemo() {
   const { t, locale } = useTranslation();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [itemPendingEdit, setItemPendingEdit] = useState<PantryItem | null>(
+    null,
+  );
   const [itemPendingRemoval, setItemPendingRemoval] = useState<{
     id: string;
     name: string;
@@ -214,8 +218,13 @@ export function PantryDemo() {
       ) : null}
 
       <AddItemModal
-        open={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        key={itemPendingEdit?.id ?? "create"}
+        open={isAddModalOpen || itemPendingEdit !== null}
+        item={itemPendingEdit}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setItemPendingEdit(null);
+        }}
       />
 
       <RemoveItemModal
@@ -404,6 +413,18 @@ export function PantryDemo() {
                               +
                             </Button>
                           </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            aria-label={t("item.editAria", {
+                              name: item.name,
+                            })}
+                            disabled={isMutating}
+                            onClick={() => setItemPendingEdit(item)}
+                          >
+                            {t("item.edit")}
+                          </Button>
                           <Button
                             type="button"
                             variant="ghost"

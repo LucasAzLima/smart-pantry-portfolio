@@ -6,6 +6,7 @@ import { useTranslation } from "@/i18n/useTranslation";
 import type { MessageKey } from "@/i18n/messages";
 import {
   type PantryCategory,
+  type PantryItem,
   type PantryUnit,
   usePantryStore,
 } from "@/store/usePantryStore";
@@ -32,27 +33,49 @@ const selectClassName =
 
 export interface AddItemModalProps {
   open: boolean;
+  item?: PantryItem | null;
   onClose: () => void;
 }
 
-export function AddItemModal({ open, onClose }: AddItemModalProps) {
+function getInitialFormValues(item: PantryItem | null) {
+  return {
+    name: item?.name ?? "",
+    quantity: item ? String(item.quantity) : "1",
+    unit: item?.unit ?? "units",
+    category: item?.category ?? "pantry",
+    expiryDate: item?.expiryDate ?? "",
+  };
+}
+
+export function AddItemModal({
+  open,
+  item = null,
+  onClose,
+}: AddItemModalProps) {
   const { t } = useTranslation();
   const addItem = usePantryStore((state) => state.addItem);
+  const updateItem = usePantryStore((state) => state.updateItem);
   const isMutating = usePantryStore((state) => state.isMutating);
 
-  const [name, setName] = useState("");
-  const [quantity, setQuantity] = useState("1");
-  const [unit, setUnit] = useState<PantryUnit>("units");
-  const [category, setCategory] = useState<PantryCategory>("pantry");
-  const [expiryDate, setExpiryDate] = useState("");
+  const initialValues = getInitialFormValues(item);
+  const isEditing = item !== null;
+
+  const [name, setName] = useState(initialValues.name);
+  const [quantity, setQuantity] = useState(initialValues.quantity);
+  const [unit, setUnit] = useState<PantryUnit>(initialValues.unit);
+  const [category, setCategory] = useState<PantryCategory>(
+    initialValues.category,
+  );
+  const [expiryDate, setExpiryDate] = useState(initialValues.expiryDate);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetForm = () => {
-    setName("");
-    setQuantity("1");
-    setUnit("units");
-    setCategory("pantry");
-    setExpiryDate("");
+    const nextValues = getInitialFormValues(item);
+    setName(nextValues.name);
+    setQuantity(nextValues.quantity);
+    setUnit(nextValues.unit);
+    setCategory(nextValues.category);
+    setExpiryDate(nextValues.expiryDate);
   };
 
   const handleClose = () => {
@@ -73,15 +96,19 @@ export function AddItemModal({ open, onClose }: AddItemModalProps) {
     }
 
     const parsedQuantity = Number(quantity);
-    setIsSubmitting(true);
-
-    const succeeded = await addItem({
+    const payload = {
       name: trimmedName,
       quantity: Number.isFinite(parsedQuantity) ? parsedQuantity : undefined,
       unit,
       category,
       expiryDate,
-    });
+    };
+
+    setIsSubmitting(true);
+
+    const succeeded = item
+      ? await updateItem(item.id, payload)
+      : await addItem(payload);
 
     setIsSubmitting(false);
 
@@ -99,7 +126,7 @@ export function AddItemModal({ open, onClose }: AddItemModalProps) {
     <Modal
       open={open}
       onClose={handleClose}
-      title={t("modal.addItemTitle")}
+      title={t(isEditing ? "modal.editItemTitle" : "modal.addItemTitle")}
       footer={
         <>
           <Button
@@ -111,7 +138,7 @@ export function AddItemModal({ open, onClose }: AddItemModalProps) {
             {t("modal.cancel")}
           </Button>
           <Button type="submit" form="add-item-form" isLoading={busy}>
-            {t("form.addItem")}
+            {t(isEditing ? "form.saveItem" : "form.addItem")}
           </Button>
         </>
       }
@@ -122,7 +149,7 @@ export function AddItemModal({ open, onClose }: AddItemModalProps) {
           void handleSubmit(event);
         }}
         className="flex flex-col gap-4"
-        aria-label={t("form.ariaLabel")}
+        aria-label={t(isEditing ? "form.editAriaLabel" : "form.ariaLabel")}
       >
         <div className="flex flex-col gap-2">
           <label

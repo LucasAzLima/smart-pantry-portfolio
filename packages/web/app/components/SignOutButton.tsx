@@ -1,34 +1,53 @@
 "use client";
 
 import { Button } from "@smart-pantry/ui";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { SignOutModal } from "./SignOutModal";
 import { signOut } from "@/app/actions/auth";
 import { isNextRedirectError } from "@/lib/auth/redirect";
 import { useTranslation } from "@/i18n/useTranslation";
 
 export function SignOutButton() {
   const { t } = useTranslation();
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  const handleCancel = () => {
+    if (isPending) {
+      return;
+    }
+
+    setIsConfirmOpen(false);
+  };
+
+  const handleConfirm = () => {
+    startTransition(async () => {
+      try {
+        await signOut();
+      } catch (caught) {
+        if (isNextRedirectError(caught)) {
+          throw caught;
+        }
+      }
+    });
+  };
+
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      isLoading={isPending}
-      onClick={() => {
-        startTransition(async () => {
-          try {
-            await signOut();
-          } catch (caught) {
-            if (isNextRedirectError(caught)) {
-              throw caught;
-            }
-          }
-        });
-      }}
-    >
-      {t("auth.signOut")}
-    </Button>
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => setIsConfirmOpen(true)}
+      >
+        {t("auth.signOut")}
+      </Button>
+      <SignOutModal
+        open={isConfirmOpen}
+        isLoading={isPending}
+        onCancel={handleCancel}
+        onConfirm={handleConfirm}
+      />
+    </>
   );
 }

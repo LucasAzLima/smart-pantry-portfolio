@@ -3,6 +3,7 @@ import type {
   PantryCategory,
   PantryItemInsert,
   PantryItemRow,
+  PantryItemUpdate,
   PantryUnit,
 } from "@/lib/supabase/database.types";
 import {
@@ -93,6 +94,33 @@ export async function insertPantryItem(
 
   if (error || !data) {
     throw new PantryApiError(toErrorMessage(error, "Unable to add pantry item."));
+  }
+
+  return pantryItemFromRow(data as PantryItemRow);
+}
+
+export async function updatePantryItem(
+  supabase: PantrySupabaseClient,
+  itemId: string,
+  input: CreatePantryItemInput,
+): Promise<PantryItem> {
+  const payload: PantryItemUpdate = {
+    name: input.name,
+    quantity: input.quantity,
+    unit: input.unit,
+    category: input.category,
+    expiry_date: input.expiryDate.trim() === "" ? null : input.expiryDate,
+  };
+
+  const { data, error } = await supabase
+    .from("pantry_items")
+    .update(payload)
+    .eq("id", itemId)
+    .select("*")
+    .single();
+
+  if (error || !data) {
+    throw new PantryApiError(toErrorMessage(error, "Unable to update pantry item."));
   }
 
   return pantryItemFromRow(data as PantryItemRow);
