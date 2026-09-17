@@ -11,7 +11,9 @@
     "build": "npm run build -w web",
     "lint": "npm run lint -w web",
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "storybook": "npm run storybook -w @smart-pantry/ui",
+    "build-storybook": "npm run build-storybook -w @smart-pantry/ui"
   },
   "keywords": [],
   "author": "",

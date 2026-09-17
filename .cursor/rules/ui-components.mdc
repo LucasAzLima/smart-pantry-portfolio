@@ -11,3 +11,5 @@ alwaysApply: false
 - Prefer composition over deep prop drilling.
 - Do not depend on Next.js or Zustand; keep this package reusable.
 - Style with Tailwind-friendly className props when needed; avoid app-specific logic.
+- When creating a new component, follow the `ui-component-with-storybook` skill: colocate `<Name>.stories.tsx` and `<Name>.test.tsx`, then re-export from `src/index.ts`.
+- Run Storybook with `npm run storybook` (root) or `npm run storybook -w @smart-pantry/ui`.
