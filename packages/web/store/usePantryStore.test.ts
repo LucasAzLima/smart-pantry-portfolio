@@ -1,14 +1,18 @@
 import { act, renderHook } from "@testing-library/react";
-import { PANTRY_STORAGE_KEY, usePantryStore } from "./usePantryStore";
+import {
+  PANTRY_STORAGE_KEY,
+  type PantryItem,
+  usePantryStore,
+} from "./usePantryStore";
 
 interface PersistedStorageValue {
   state: {
-    items: Array<{ id: string; name: string }>;
+    items: PantryItem[];
   };
   version?: number;
 }
 
-function readPersistedItems(): Array<{ id: string; name: string }> {
+function readPersistedItems(): PantryItem[] {
   const raw = localStorage.getItem(PANTRY_STORAGE_KEY);
   if (!raw) {
     return [];
@@ -27,23 +31,73 @@ describe("usePantryStore", () => {
     });
   });
 
-  it("adds trimmed items to the pantry", () => {
+  it("adds trimmed items with safe field defaults", () => {
     const { result } = renderHook(() => usePantryStore());
 
     act(() => {
-      result.current.addItem("  Milk  ");
-      result.current.addItem("");
+      result.current.addItem({ name: "  Milk  " });
+      result.current.addItem({ name: "" });
     });
 
     expect(result.current.items).toHaveLength(1);
-    expect(result.current.items[0]?.name).toBe("Milk");
+    expect(result.current.items[0]).toMatchObject({
+      name: "Milk",
+      quantity: 1,
+      unit: "units",
+      category: "pantry",
+      expiryDate: "",
+    });
+  });
+
+  it("stores provided quantity, unit, category, and expiry date", () => {
+    const { result } = renderHook(() => usePantryStore());
+
+    act(() => {
+      result.current.addItem({
+        name: "Olive oil",
+        quantity: 0.5,
+        unit: "l",
+        category: "pantry",
+        expiryDate: "2026-12-01",
+      });
+    });
+
+    expect(result.current.items[0]).toMatchObject({
+      name: "Olive oil",
+      quantity: 0.5,
+      unit: "l",
+      category: "pantry",
+      expiryDate: "2026-12-01",
+    });
+  });
+
+  it("falls back to defaults for invalid quantity and enums", () => {
+    const { result } = renderHook(() => usePantryStore());
+
+    act(() => {
+      result.current.addItem({
+        name: "Eggs",
+        quantity: -2,
+        unit: "boxes" as PantryItem["unit"],
+        category: "garage" as PantryItem["category"],
+        expiryDate: "  2026-01-15  ",
+      });
+    });
+
+    expect(result.current.items[0]).toMatchObject({
+      name: "Eggs",
+      quantity: 1,
+      unit: "units",
+      category: "pantry",
+      expiryDate: "2026-01-15",
+    });
   });
 
   it("clears all items", () => {
     const { result } = renderHook(() => usePantryStore());
 
     act(() => {
-      result.current.addItem("Eggs");
+      result.current.addItem({ name: "Eggs" });
       result.current.clearItems();
     });
 
@@ -54,19 +108,31 @@ describe("usePantryStore", () => {
     const { result } = renderHook(() => usePantryStore());
 
     act(() => {
-      result.current.addItem("Olive oil");
+      result.current.addItem({
+        name: "Olive oil",
+        quantity: 2,
+        unit: "units",
+        category: "fridge",
+        expiryDate: "2026-10-01",
+      });
     });
 
     const persisted = readPersistedItems();
     expect(persisted).toHaveLength(1);
-    expect(persisted[0]?.name).toBe("Olive oil");
+    expect(persisted[0]).toMatchObject({
+      name: "Olive oil",
+      quantity: 2,
+      unit: "units",
+      category: "fridge",
+      expiryDate: "2026-10-01",
+    });
   });
 
   it("clears persisted items from localStorage", () => {
     const { result } = renderHook(() => usePantryStore());
 
     act(() => {
-      result.current.addItem("Eggs");
+      result.current.addItem({ name: "Eggs" });
       result.current.clearItems();
     });
 
@@ -76,9 +142,18 @@ describe("usePantryStore", () => {
   it("rehydrates items from localStorage", async () => {
     const persisted: PersistedStorageValue = {
       state: {
-        items: [{ id: "item-1", name: "Rice" }],
+        items: [
+          {
+            id: "item-1",
+            name: "Rice",
+            quantity: 1,
+            unit: "kg",
+            category: "pantry",
+            expiryDate: "2027-01-01",
+          },
+        ],
       },
-      version: 0,
+      version: 1,
     };
     localStorage.setItem(PANTRY_STORAGE_KEY, JSON.stringify(persisted));
 
@@ -87,7 +162,41 @@ describe("usePantryStore", () => {
     });
 
     expect(usePantryStore.getState().items).toEqual([
-      { id: "item-1", name: "Rice" },
+      {
+        id: "item-1",
+        name: "Rice",
+        quantity: 1,
+        unit: "kg",
+        category: "pantry",
+        expiryDate: "2027-01-01",
+      },
+    ]);
+  });
+
+  it("migrates legacy persisted items into the expanded shape", async () => {
+    localStorage.setItem(
+      PANTRY_STORAGE_KEY,
+      JSON.stringify({
+        state: {
+          items: [{ id: "legacy-1", name: "Butter" }],
+        },
+        version: 0,
+      }),
+    );
+
+    await act(async () => {
+      await usePantryStore.persist.rehydrate();
+    });
+
+    expect(usePantryStore.getState().items).toEqual([
+      {
+        id: "legacy-1",
+        name: "Butter",
+        quantity: 1,
+        unit: "units",
+        category: "pantry",
+        expiryDate: "",
+      },
     ]);
   });
 });
