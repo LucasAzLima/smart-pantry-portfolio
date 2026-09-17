@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Modal } from "./Modal";
 
@@ -60,20 +60,32 @@ describe("Modal", () => {
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
 
-  it("calls onClose when the backdrop is clicked", async () => {
-    const user = userEvent.setup();
+  it("calls onClose when the backdrop is clicked", () => {
     const handleClose = jest.fn();
 
-    const { container } = render(
+    render(
       <Modal open onClose={handleClose} title="Backdrop">
         Body
       </Modal>,
     );
 
-    const backdrop = container.firstChild;
+    const backdrop = screen.getByRole("dialog").parentElement;
     expect(backdrop).toBeTruthy();
-    await user.click(backdrop as Element);
+    fireEvent.click(backdrop as HTMLElement);
     expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("portals the overlay to document.body so fixed positioning is not trapped", () => {
+    render(
+      <div style={{ filter: "blur(0px)", transform: "translateZ(0)" }}>
+        <Modal open onClose={jest.fn()} title="Portaled">
+          Body
+        </Modal>
+      </div>,
+    );
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.parentElement?.parentElement).toBe(document.body);
   });
 
   it("does not close when clicking inside the dialog panel", async () => {

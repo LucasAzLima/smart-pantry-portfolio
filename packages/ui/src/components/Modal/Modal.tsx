@@ -7,6 +7,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 
 export interface ModalProps {
   open: boolean;
@@ -134,7 +135,7 @@ export function Modal({
     onKeyDown: handleDialogKeyDown,
   };
 
-  return (
+  const overlay = (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 p-4"
       onClick={handleBackdropClick}
@@ -175,4 +176,10 @@ export function Modal({
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") {
+    return overlay;
+  }
+
+  return createPortal(overlay, document.body);
 }
