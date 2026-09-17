@@ -9,6 +9,7 @@ import {
   getErrorMessage,
   insertPantryItem,
   listPantryItems,
+  updatePantryItem as updatePantryItemApi,
   updatePantryItemQuantity as updatePantryItemQuantityApi,
 } from "@/lib/supabase/pantryApi";
 
@@ -25,6 +26,8 @@ export interface AddPantryItemInput {
   expiryDate?: string;
 }
 
+export type UpdatePantryItemInput = AddPantryItemInput;
+
 interface PantryState {
   items: PantryItem[];
   status: PantryStatus;
@@ -33,6 +36,7 @@ interface PantryState {
   fetchItems: () => Promise<void>;
   addItem: (input: AddPantryItemInput) => Promise<boolean>;
   removeItem: (id: string) => Promise<boolean>;
+  updateItem: (id: string, input: UpdatePantryItemInput) => Promise<boolean>;
   updateItemQuantity: (id: string, quantity: number) => Promise<boolean>;
   clearItems: () => Promise<boolean>;
   clearError: () => void;
@@ -169,6 +173,63 @@ export const usePantryStore = create<PantryState>((set, get) => ({
         items: previousItems,
         isMutating: false,
         error: getErrorMessage(error, "Unable to remove pantry item."),
+      });
+      return false;
+    }
+  },
+
+  updateItem: async (id, input) => {
+    const trimmedName = input.name.trim();
+    if (!trimmedName) {
+      return false;
+    }
+
+    const previousItems = get().items;
+    const target = previousItems.find((item) => item.id === id);
+    if (!target) {
+      return false;
+    }
+
+    const nextFields = {
+      name: trimmedName,
+      quantity: normalizeQuantity(input.quantity),
+      unit: normalizeUnit(input.unit),
+      category: normalizeCategory(input.category),
+      expiryDate: normalizeExpiryDate(input.expiryDate),
+    };
+
+    if (
+      target.name === nextFields.name &&
+      target.quantity === nextFields.quantity &&
+      target.unit === nextFields.unit &&
+      target.category === nextFields.category &&
+      target.expiryDate === nextFields.expiryDate
+    ) {
+      return true;
+    }
+
+    set({
+      items: previousItems.map((item) =>
+        item.id === id ? { ...item, ...nextFields } : item,
+      ),
+      isMutating: true,
+      error: null,
+    });
+
+    try {
+      const supabase = createClient();
+      const updated = await updatePantryItemApi(supabase, id, nextFields);
+      set((state) => ({
+        items: state.items.map((item) => (item.id === id ? updated : item)),
+        isMutating: false,
+        error: null,
+      }));
+      return true;
+    } catch (error) {
+      set({
+        items: previousItems,
+        isMutating: false,
+        error: getErrorMessage(error, "Unable to update pantry item."),
       });
       return false;
     }

@@ -7,6 +7,7 @@ import {
   insertPantryItem,
   listPantryItems,
   PantryApiError,
+  updatePantryItem,
   updatePantryItemQuantity,
 } from "./pantryApi";
 
@@ -152,6 +153,51 @@ describe("pantryApi", () => {
     });
     expect(item.name).toBe("Milk");
     expect(item.userId).toBe("user-1");
+  });
+
+  it("updatePantryItem updates fields by id and returns the mapped item", async () => {
+    const row: PantryItemRow = {
+      id: "item-1",
+      user_id: "user-1",
+      name: "Almond milk",
+      quantity: 2,
+      unit: "l",
+      category: "fridge",
+      expiry_date: "2026-11-01",
+      created_at: "2026-09-17T00:00:00.000Z",
+    };
+
+    const builder = createThenableBuilder({ data: row, error: null });
+    const supabase = {
+      from: jest.fn(() => builder),
+    };
+
+    const item = await updatePantryItem(supabase as never, "item-1", {
+      name: "Almond milk",
+      quantity: 2,
+      unit: "l",
+      category: "fridge",
+      expiryDate: "2026-11-01",
+    });
+
+    expect(builder.update).toHaveBeenCalledWith({
+      name: "Almond milk",
+      quantity: 2,
+      unit: "l",
+      category: "fridge",
+      expiry_date: "2026-11-01",
+    });
+    expect(builder.eq).toHaveBeenCalledWith("id", "item-1");
+    expect(item).toEqual({
+      id: "item-1",
+      userId: "user-1",
+      name: "Almond milk",
+      quantity: 2,
+      unit: "l",
+      category: "fridge",
+      expiryDate: "2026-11-01",
+      createdAt: "2026-09-17T00:00:00.000Z",
+    });
   });
 
   it("updatePantryItemQuantity updates by id", async () => {

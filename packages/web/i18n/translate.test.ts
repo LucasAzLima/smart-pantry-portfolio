@@ -7,9 +7,12 @@ describe("translate", () => {
     expect(translate("en-US", "form.addItem")).toBe("Add item");
     expect(translate("en-US", "form.addNewItem")).toBe("Add new item");
     expect(translate("en-US", "modal.addItemTitle")).toBe("Add new item");
+    expect(translate("en-US", "modal.editItemTitle")).toBe("Edit item");
+    expect(translate("en-US", "form.saveItem")).toBe("Save");
     expect(translate("en-US", "modal.removeItemTitle")).toBe("Remove item");
     expect(translate("en-US", "dashboard.heading")).toBe("Dashboard");
     expect(translate("en-US", "auth.signIn")).toBe("Sign in");
+    expect(translate("en-US", "modal.signOutTitle")).toBe("Sign out?");
   });
 
   it("resolves keys for Portuguese", () => {
@@ -19,6 +22,9 @@ describe("translate", () => {
     expect(translate("pt-BR", "modal.removeConfirm")).toBe("Remover");
     expect(translate("pt-BR", "inventory.empty")).toContain("despensa");
     expect(translate("pt-BR", "auth.signOut")).toBe("Sair");
+    expect(translate("pt-BR", "modal.signOutMessage")).toBe(
+      "Tem certeza de que deseja sair?",
+    );
   });
 
   it("interpolates params", () => {

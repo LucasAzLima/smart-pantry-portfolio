@@ -6,6 +6,7 @@ const mockCreateClient = jest.fn();
 const mockGetAuthenticatedUserId = jest.fn();
 const mockListPantryItems = jest.fn();
 const mockInsertPantryItem = jest.fn();
+const mockUpdatePantryItem = jest.fn();
 const mockUpdatePantryItemQuantity = jest.fn();
 const mockDeletePantryItem = jest.fn();
 const mockDeleteAllPantryItems = jest.fn();
@@ -19,6 +20,7 @@ jest.mock("@/lib/supabase/pantryApi", () => ({
     mockGetAuthenticatedUserId(...args),
   listPantryItems: (...args: unknown[]) => mockListPantryItems(...args),
   insertPantryItem: (...args: unknown[]) => mockInsertPantryItem(...args),
+  updatePantryItem: (...args: unknown[]) => mockUpdatePantryItem(...args),
   updatePantryItemQuantity: (...args: unknown[]) =>
     mockUpdatePantryItemQuantity(...args),
   deletePantryItem: (...args: unknown[]) => mockDeletePantryItem(...args),
@@ -229,6 +231,97 @@ describe("usePantryStore", () => {
     expect(succeeded).toBe(false);
     expect(result.current.items).toEqual([item]);
     expect(result.current.error).toBe("Delete failed");
+  });
+
+  it("updates an item optimistically and replaces it with the API result", async () => {
+    const item = makeItem({
+      name: "Milk",
+      quantity: 1,
+      unit: "units",
+      category: "fridge",
+      expiryDate: "2026-10-01",
+    });
+    const updated = makeItem({
+      ...item,
+      name: "Almond milk",
+      quantity: 2,
+      unit: "l",
+      category: "pantry",
+      expiryDate: "2026-11-01",
+    });
+    mockUpdatePantryItem.mockResolvedValue(updated);
+
+    act(() => {
+      usePantryStore.setState({ items: [item] });
+    });
+
+    const { result } = renderHook(() => usePantryStore());
+
+    let succeeded = false;
+    await act(async () => {
+      succeeded = await result.current.updateItem(item.id, {
+        name: "  Almond milk  ",
+        quantity: 2,
+        unit: "l",
+        category: "pantry",
+        expiryDate: "2026-11-01",
+      });
+    });
+
+    expect(succeeded).toBe(true);
+    expect(mockUpdatePantryItem).toHaveBeenCalledWith(supabaseStub, item.id, {
+      name: "Almond milk",
+      quantity: 2,
+      unit: "l",
+      category: "pantry",
+      expiryDate: "2026-11-01",
+    });
+    expect(result.current.items).toEqual([updated]);
+  });
+
+  it("ignores empty names when updating", async () => {
+    const item = makeItem();
+
+    act(() => {
+      usePantryStore.setState({ items: [item] });
+    });
+
+    const { result } = renderHook(() => usePantryStore());
+
+    let succeeded = true;
+    await act(async () => {
+      succeeded = await result.current.updateItem(item.id, { name: "   " });
+    });
+
+    expect(succeeded).toBe(false);
+    expect(mockUpdatePantryItem).not.toHaveBeenCalled();
+    expect(result.current.items).toEqual([item]);
+  });
+
+  it("rolls back updateItem when the API fails", async () => {
+    const item = makeItem({ name: "Milk" });
+    mockUpdatePantryItem.mockRejectedValue(new Error("Update failed"));
+
+    act(() => {
+      usePantryStore.setState({ items: [item] });
+    });
+
+    const { result } = renderHook(() => usePantryStore());
+
+    let succeeded = true;
+    await act(async () => {
+      succeeded = await result.current.updateItem(item.id, {
+        name: "Almond milk",
+        quantity: 3,
+        unit: "l",
+        category: "fridge",
+        expiryDate: "2026-12-01",
+      });
+    });
+
+    expect(succeeded).toBe(false);
+    expect(result.current.items).toEqual([item]);
+    expect(result.current.error).toBe("Update failed");
   });
 
   it("updates item quantity optimistically", async () => {
