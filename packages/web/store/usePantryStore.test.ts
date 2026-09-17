@@ -1,61 +1,156 @@
-import { act, renderHook } from "@testing-library/react";
-import {
-  PANTRY_STORAGE_KEY,
-  type PantryItem,
-  usePantryStore,
-} from "./usePantryStore";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import type { PantryItem } from "@/lib/supabase/pantryItem";
+import { usePantryStore } from "./usePantryStore";
 
-interface PersistedStorageValue {
-  state: {
-    items: PantryItem[];
+const mockCreateClient = jest.fn();
+const mockGetAuthenticatedUserId = jest.fn();
+const mockListPantryItems = jest.fn();
+const mockInsertPantryItem = jest.fn();
+const mockUpdatePantryItemQuantity = jest.fn();
+const mockDeletePantryItem = jest.fn();
+const mockDeleteAllPantryItems = jest.fn();
+
+jest.mock("@/lib/supabase/client", () => ({
+  createClient: () => mockCreateClient(),
+}));
+
+jest.mock("@/lib/supabase/pantryApi", () => ({
+  getAuthenticatedUserId: (...args: unknown[]) =>
+    mockGetAuthenticatedUserId(...args),
+  listPantryItems: (...args: unknown[]) => mockListPantryItems(...args),
+  insertPantryItem: (...args: unknown[]) => mockInsertPantryItem(...args),
+  updatePantryItemQuantity: (...args: unknown[]) =>
+    mockUpdatePantryItemQuantity(...args),
+  deletePantryItem: (...args: unknown[]) => mockDeletePantryItem(...args),
+  deleteAllPantryItems: (...args: unknown[]) =>
+    mockDeleteAllPantryItems(...args),
+  getErrorMessage: (error: unknown, fallback: string) => {
+    if (error instanceof Error && error.message.trim() !== "") {
+      return error.message;
+    }
+
+    return fallback;
+  },
+}));
+
+const supabaseStub = { from: jest.fn() };
+
+function makeItem(overrides: Partial<PantryItem> = {}): PantryItem {
+  return {
+    id: "item-1",
+    userId: "user-1",
+    name: "Milk",
+    quantity: 1,
+    unit: "units",
+    category: "pantry",
+    expiryDate: "",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    ...overrides,
   };
-  version?: number;
-}
-
-function readPersistedItems(): PantryItem[] {
-  const raw = localStorage.getItem(PANTRY_STORAGE_KEY);
-  if (!raw) {
-    return [];
-  }
-
-  const parsed = JSON.parse(raw) as PersistedStorageValue;
-  return parsed.state.items;
 }
 
 describe("usePantryStore", () => {
   beforeEach(() => {
-    localStorage.clear();
+    jest.clearAllMocks();
+    mockCreateClient.mockReturnValue(supabaseStub);
+    mockGetAuthenticatedUserId.mockResolvedValue("user-1");
+
     act(() => {
-      usePantryStore.setState({ items: [] });
-      usePantryStore.persist.clearStorage();
+      usePantryStore.setState({
+        items: [],
+        status: "idle",
+        error: null,
+        isMutating: false,
+      });
     });
   });
 
-  it("adds trimmed items with safe field defaults", () => {
+  it("loads items for the authenticated user", async () => {
+    const items = [makeItem({ name: "Eggs" })];
+    mockListPantryItems.mockResolvedValue(items);
+
     const { result } = renderHook(() => usePantryStore());
 
-    act(() => {
-      result.current.addItem({ name: "  Milk  " });
-      result.current.addItem({ name: "" });
+    await act(async () => {
+      await result.current.fetchItems();
     });
 
-    expect(result.current.items).toHaveLength(1);
-    expect(result.current.items[0]).toMatchObject({
+    expect(mockGetAuthenticatedUserId).toHaveBeenCalledWith(supabaseStub);
+    expect(mockListPantryItems).toHaveBeenCalledWith(supabaseStub, "user-1");
+    expect(result.current.items).toEqual(items);
+    expect(result.current.status).toBe("idle");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("stores a load error when fetch fails", async () => {
+    mockListPantryItems.mockRejectedValue(new Error("Network down"));
+
+    const { result } = renderHook(() => usePantryStore());
+
+    await act(async () => {
+      await result.current.fetchItems();
+    });
+
+    expect(result.current.status).toBe("error");
+    expect(result.current.error).toBe("Network down");
+  });
+
+  it("adds trimmed items with safe field defaults via Supabase", async () => {
+    const created = makeItem({
+      id: "created-1",
       name: "Milk",
       quantity: 1,
       unit: "units",
       category: "pantry",
       expiryDate: "",
-      userId: null,
     });
-    expect(result.current.items[0].createdAt).toEqual(expect.any(String));
-  });
+    mockInsertPantryItem.mockResolvedValue(created);
 
-  it("stores provided quantity, unit, category, and expiry date", () => {
     const { result } = renderHook(() => usePantryStore());
 
-    act(() => {
-      result.current.addItem({
+    let succeeded = false;
+    await act(async () => {
+      succeeded = await result.current.addItem({ name: "  Milk  " });
+    });
+
+    expect(succeeded).toBe(true);
+    expect(mockInsertPantryItem).toHaveBeenCalledWith(supabaseStub, "user-1", {
+      name: "Milk",
+      quantity: 1,
+      unit: "units",
+      category: "pantry",
+      expiryDate: "",
+    });
+    expect(result.current.items).toEqual([created]);
+  });
+
+  it("ignores empty names when adding", async () => {
+    const { result } = renderHook(() => usePantryStore());
+
+    let succeeded = true;
+    await act(async () => {
+      succeeded = await result.current.addItem({ name: "   " });
+    });
+
+    expect(succeeded).toBe(false);
+    expect(mockInsertPantryItem).not.toHaveBeenCalled();
+    expect(result.current.items).toHaveLength(0);
+  });
+
+  it("stores provided quantity, unit, category, and expiry date", async () => {
+    const created = makeItem({
+      name: "Olive oil",
+      quantity: 0.5,
+      unit: "l",
+      category: "pantry",
+      expiryDate: "2026-12-01",
+    });
+    mockInsertPantryItem.mockResolvedValue(created);
+
+    const { result } = renderHook(() => usePantryStore());
+
+    await act(async () => {
+      await result.current.addItem({
         name: "Olive oil",
         quantity: 0.5,
         unit: "l",
@@ -64,7 +159,7 @@ describe("usePantryStore", () => {
       });
     });
 
-    expect(result.current.items[0]).toMatchObject({
+    expect(mockInsertPantryItem).toHaveBeenCalledWith(supabaseStub, "user-1", {
       name: "Olive oil",
       quantity: 0.5,
       unit: "l",
@@ -73,11 +168,13 @@ describe("usePantryStore", () => {
     });
   });
 
-  it("falls back to defaults for invalid quantity and enums", () => {
+  it("falls back to defaults for invalid quantity and enums", async () => {
+    mockInsertPantryItem.mockResolvedValue(makeItem({ name: "Eggs" }));
+
     const { result } = renderHook(() => usePantryStore());
 
-    act(() => {
-      result.current.addItem({
+    await act(async () => {
+      await result.current.addItem({
         name: "Eggs",
         quantity: -2,
         unit: "boxes" as PantryItem["unit"],
@@ -86,7 +183,7 @@ describe("usePantryStore", () => {
       });
     });
 
-    expect(result.current.items[0]).toMatchObject({
+    expect(mockInsertPantryItem).toHaveBeenCalledWith(supabaseStub, "user-1", {
       name: "Eggs",
       quantity: 1,
       unit: "units",
@@ -95,188 +192,122 @@ describe("usePantryStore", () => {
     });
   });
 
-  it("clears all items", () => {
-    const { result } = renderHook(() => usePantryStore());
+  it("removes a single item by id with optimistic update", async () => {
+    const first = makeItem({ id: "a", name: "Milk" });
+    const second = makeItem({ id: "b", name: "Eggs" });
+    mockDeletePantryItem.mockResolvedValue(undefined);
 
     act(() => {
-      result.current.addItem({ name: "Eggs" });
-      result.current.clearItems();
+      usePantryStore.setState({ items: [first, second] });
     });
 
-    expect(result.current.items).toHaveLength(0);
+    const { result } = renderHook(() => usePantryStore());
+
+    await act(async () => {
+      await result.current.removeItem("a");
+    });
+
+    expect(mockDeletePantryItem).toHaveBeenCalledWith(supabaseStub, "a");
+    expect(result.current.items).toEqual([second]);
   });
 
-  it("removes a single item by id", () => {
+  it("rolls back removeItem when the API fails", async () => {
+    const item = makeItem();
+    mockDeletePantryItem.mockRejectedValue(new Error("Delete failed"));
+
+    act(() => {
+      usePantryStore.setState({ items: [item] });
+    });
+
     const { result } = renderHook(() => usePantryStore());
 
-    act(() => {
-      result.current.addItem({ name: "Milk" });
-      result.current.addItem({ name: "Eggs" });
+    let succeeded = true;
+    await act(async () => {
+      succeeded = await result.current.removeItem(item.id);
     });
 
-    const [firstItem, secondItem] = result.current.items;
-
-    act(() => {
-      result.current.removeItem(firstItem.id);
-    });
-
-    expect(result.current.items).toEqual([secondItem]);
+    expect(succeeded).toBe(false);
+    expect(result.current.items).toEqual([item]);
+    expect(result.current.error).toBe("Delete failed");
   });
 
-  it("ignores removeItem for unknown ids", () => {
+  it("updates item quantity optimistically", async () => {
+    const item = makeItem({ quantity: 2 });
+    mockUpdatePantryItemQuantity.mockResolvedValue(undefined);
+
+    act(() => {
+      usePantryStore.setState({ items: [item] });
+    });
+
     const { result } = renderHook(() => usePantryStore());
 
-    act(() => {
-      result.current.addItem({ name: "Milk" });
+    await act(async () => {
+      await result.current.updateItemQuantity(item.id, 5);
     });
 
-    const before = result.current.items;
-
-    act(() => {
-      result.current.removeItem("missing-id");
-    });
-
-    expect(result.current.items).toEqual(before);
+    expect(mockUpdatePantryItemQuantity).toHaveBeenCalledWith(
+      supabaseStub,
+      item.id,
+      5,
+    );
+    expect(result.current.items[0].quantity).toBe(5);
   });
 
-  it("updates item quantity immutably", () => {
+  it("ignores non-positive or invalid quantity updates", async () => {
+    const item = makeItem({ quantity: 3 });
+
+    act(() => {
+      usePantryStore.setState({ items: [item] });
+    });
+
     const { result } = renderHook(() => usePantryStore());
 
-    act(() => {
-      result.current.addItem({ name: "Rice", quantity: 2 });
+    await act(async () => {
+      await result.current.updateItemQuantity(item.id, 0);
+      await result.current.updateItemQuantity(item.id, -1);
+      await result.current.updateItemQuantity(item.id, Number.NaN);
     });
 
-    const itemId = result.current.items[0].id;
-    const previousItem = result.current.items[0];
-
-    act(() => {
-      result.current.updateItemQuantity(itemId, 5);
-    });
-
-    expect(result.current.items[0]).toMatchObject({
-      id: itemId,
-      name: "Rice",
-      quantity: 5,
-    });
-    expect(result.current.items[0]).not.toBe(previousItem);
-  });
-
-  it("ignores non-positive or invalid quantity updates", () => {
-    const { result } = renderHook(() => usePantryStore());
-
-    act(() => {
-      result.current.addItem({ name: "Flour", quantity: 3 });
-    });
-
-    const itemId = result.current.items[0].id;
-
-    act(() => {
-      result.current.updateItemQuantity(itemId, 0);
-      result.current.updateItemQuantity(itemId, -1);
-      result.current.updateItemQuantity(itemId, Number.NaN);
-    });
-
+    expect(mockUpdatePantryItemQuantity).not.toHaveBeenCalled();
     expect(result.current.items[0].quantity).toBe(3);
   });
 
-  it("writes items to localStorage", () => {
-    const { result } = renderHook(() => usePantryStore());
+  it("clears all items for the authenticated user", async () => {
+    mockDeleteAllPantryItems.mockResolvedValue(undefined);
 
     act(() => {
-      result.current.addItem({
-        name: "Olive oil",
-        quantity: 2,
-        unit: "units",
-        category: "fridge",
-        expiryDate: "2026-10-01",
+      usePantryStore.setState({
+        items: [makeItem({ id: "a" }), makeItem({ id: "b", name: "Eggs" })],
       });
     });
 
-    const persisted = readPersistedItems();
-    expect(persisted).toHaveLength(1);
-    expect(persisted[0]).toMatchObject({
-      name: "Olive oil",
-      quantity: 2,
-      unit: "units",
-      category: "fridge",
-      expiryDate: "2026-10-01",
-    });
-  });
-
-  it("clears persisted items from localStorage", () => {
     const { result } = renderHook(() => usePantryStore());
 
+    await act(async () => {
+      await result.current.clearItems();
+    });
+
+    expect(mockDeleteAllPantryItems).toHaveBeenCalledWith(supabaseStub, "user-1");
+    expect(result.current.items).toHaveLength(0);
+  });
+
+  it("rolls back clearItems when the API fails", async () => {
+    const items = [makeItem()];
+    mockDeleteAllPantryItems.mockRejectedValue(new Error("Clear failed"));
+
     act(() => {
-      result.current.addItem({ name: "Eggs" });
-      result.current.clearItems();
+      usePantryStore.setState({ items });
     });
 
-    expect(readPersistedItems()).toEqual([]);
-  });
-
-  it("rehydrates items from localStorage", async () => {
-    const persisted: PersistedStorageValue = {
-      state: {
-        items: [
-          {
-            id: "item-1",
-            userId: "user-1",
-            name: "Rice",
-            quantity: 1,
-            unit: "kg",
-            category: "pantry",
-            expiryDate: "2027-01-01",
-            createdAt: "2026-01-01T00:00:00.000Z",
-          },
-        ],
-      },
-      version: 2,
-    };
-    localStorage.setItem(PANTRY_STORAGE_KEY, JSON.stringify(persisted));
+    const { result } = renderHook(() => usePantryStore());
 
     await act(async () => {
-      await usePantryStore.persist.rehydrate();
+      await result.current.clearItems();
     });
 
-    expect(usePantryStore.getState().items).toEqual([
-      {
-        id: "item-1",
-        userId: "user-1",
-        name: "Rice",
-        quantity: 1,
-        unit: "kg",
-        category: "pantry",
-        expiryDate: "2027-01-01",
-        createdAt: "2026-01-01T00:00:00.000Z",
-      },
-    ]);
-  });
-
-  it("migrates legacy persisted items into the expanded shape", async () => {
-    localStorage.setItem(
-      PANTRY_STORAGE_KEY,
-      JSON.stringify({
-        state: {
-          items: [{ id: "legacy-1", name: "Butter" }],
-        },
-        version: 0,
-      }),
-    );
-
-    await act(async () => {
-      await usePantryStore.persist.rehydrate();
+    await waitFor(() => {
+      expect(result.current.items).toEqual(items);
     });
-
-    const [item] = usePantryStore.getState().items;
-    expect(item).toMatchObject({
-      id: "legacy-1",
-      userId: null,
-      name: "Butter",
-      quantity: 1,
-      unit: "units",
-      category: "pantry",
-      expiryDate: "",
-    });
-    expect(item.createdAt).toEqual(expect.any(String));
+    expect(result.current.error).toBe("Clear failed");
   });
 });

@@ -1,13 +1,21 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createClient } from "@/lib/supabase/client";
 import type { PantryCategory, PantryUnit } from "@/lib/supabase/database.types";
 import type { PantryItem } from "@/lib/supabase/pantryItem";
+import {
+  deleteAllPantryItems,
+  deletePantryItem,
+  getAuthenticatedUserId,
+  getErrorMessage,
+  insertPantryItem,
+  listPantryItems,
+  updatePantryItemQuantity as updatePantryItemQuantityApi,
+} from "@/lib/supabase/pantryApi";
 
 export type { PantryCategory, PantryUnit } from "@/lib/supabase/database.types";
 export type { PantryItem } from "@/lib/supabase/pantryItem";
 
-export const PANTRY_STORAGE_KEY = "smart-pantry-storage";
-export const PANTRY_STORE_VERSION = 2;
+export type PantryStatus = "idle" | "loading" | "error";
 
 export interface AddPantryItemInput {
   name: string;
@@ -15,20 +23,19 @@ export interface AddPantryItemInput {
   unit?: PantryUnit;
   category?: PantryCategory;
   expiryDate?: string;
-  userId?: string | null;
-  createdAt?: string;
 }
 
 interface PantryState {
   items: PantryItem[];
-  addItem: (input: AddPantryItemInput) => void;
-  removeItem: (id: string) => void;
-  updateItemQuantity: (id: string, quantity: number) => void;
-  clearItems: () => void;
-}
-
-interface PersistedPantryState {
-  items: PantryItem[];
+  status: PantryStatus;
+  error: string | null;
+  isMutating: boolean;
+  fetchItems: () => Promise<void>;
+  addItem: (input: AddPantryItemInput) => Promise<boolean>;
+  removeItem: (id: string) => Promise<boolean>;
+  updateItemQuantity: (id: string, quantity: number) => Promise<boolean>;
+  clearItems: () => Promise<boolean>;
+  clearError: () => void;
 }
 
 const DEFAULT_QUANTITY = 1;
@@ -82,142 +89,146 @@ function normalizeExpiryDate(value: string | undefined): string {
   return value.trim();
 }
 
-function normalizeUserId(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
+export const usePantryStore = create<PantryState>((set, get) => ({
+  items: [],
+  status: "idle",
+  error: null,
+  isMutating: false,
 
-  const trimmed = value.trim();
-  return trimmed === "" ? null : trimmed;
-}
+  clearError: () => {
+    set({ error: null });
+  },
 
-function normalizeCreatedAt(value: unknown): string {
-  if (typeof value === "string" && value.trim() !== "") {
-    return value.trim();
-  }
+  fetchItems: async () => {
+    set({ status: "loading", error: null });
 
-  return new Date().toISOString();
-}
+    try {
+      const supabase = createClient();
+      const userId = await getAuthenticatedUserId(supabase);
+      const items = await listPantryItems(supabase, userId);
+      set({ items, status: "idle", error: null });
+    } catch (error) {
+      set({
+        status: "error",
+        error: getErrorMessage(error, "Unable to load pantry items."),
+      });
+    }
+  },
 
-function normalizePantryItem(value: unknown): PantryItem | null {
-  if (typeof value !== "object" || value === null) {
-    return null;
-  }
+  addItem: async (input) => {
+    const trimmedName = input.name.trim();
+    if (!trimmedName) {
+      return false;
+    }
 
-  const candidate = value as Partial<PantryItem> & {
-    name?: unknown;
-    id?: unknown;
-    user_id?: unknown;
-    expiry_date?: unknown;
-    created_at?: unknown;
-  };
+    set({ isMutating: true, error: null });
 
-  if (typeof candidate.id !== "string" || typeof candidate.name !== "string") {
-    return null;
-  }
+    try {
+      const supabase = createClient();
+      const userId = await getAuthenticatedUserId(supabase);
+      const created = await insertPantryItem(supabase, userId, {
+        name: trimmedName,
+        quantity: normalizeQuantity(input.quantity),
+        unit: normalizeUnit(input.unit),
+        category: normalizeCategory(input.category),
+        expiryDate: normalizeExpiryDate(input.expiryDate),
+      });
 
-  const trimmedName = candidate.name.trim();
-  if (!trimmedName) {
-    return null;
-  }
+      set((state) => ({
+        items: [created, ...state.items],
+        isMutating: false,
+        error: null,
+        status: "idle",
+      }));
 
-  const expiryDate =
-    typeof candidate.expiryDate === "string"
-      ? candidate.expiryDate
-      : typeof candidate.expiry_date === "string"
-        ? candidate.expiry_date
-        : undefined;
+      return true;
+    } catch (error) {
+      set({
+        isMutating: false,
+        error: getErrorMessage(error, "Unable to add pantry item."),
+      });
+      return false;
+    }
+  },
 
-  const userId =
-    candidate.userId !== undefined
-      ? candidate.userId
-      : candidate.user_id !== undefined
-        ? candidate.user_id
-        : null;
+  removeItem: async (id) => {
+    const previousItems = get().items;
+    set({
+      items: previousItems.filter((item) => item.id !== id),
+      isMutating: true,
+      error: null,
+    });
 
-  const createdAt =
-    candidate.createdAt !== undefined
-      ? candidate.createdAt
-      : candidate.created_at !== undefined
-        ? candidate.created_at
-        : undefined;
+    try {
+      const supabase = createClient();
+      await deletePantryItem(supabase, id);
+      set({ isMutating: false, error: null });
+      return true;
+    } catch (error) {
+      set({
+        items: previousItems,
+        isMutating: false,
+        error: getErrorMessage(error, "Unable to remove pantry item."),
+      });
+      return false;
+    }
+  },
 
-  return {
-    id: candidate.id,
-    userId: normalizeUserId(userId),
-    name: trimmedName,
-    quantity: normalizeQuantity(candidate.quantity),
-    unit: normalizeUnit(candidate.unit),
-    category: normalizeCategory(candidate.category),
-    expiryDate: normalizeExpiryDate(expiryDate),
-    createdAt: normalizeCreatedAt(createdAt),
-  };
-}
+  updateItemQuantity: async (id, quantity) => {
+    if (typeof quantity !== "number" || !Number.isFinite(quantity) || quantity <= 0) {
+      return false;
+    }
 
-export const usePantryStore = create<PantryState>()(
-  persist(
-    (set) => ({
-      items: [],
-      addItem: (input) => {
-        const trimmedName = input.name.trim();
-        if (!trimmedName) {
-          return;
-        }
+    const previousItems = get().items;
+    const target = previousItems.find((item) => item.id === id);
+    if (!target || target.quantity === quantity) {
+      return false;
+    }
 
-        set((state) => ({
-          items: [
-            ...state.items,
-            {
-              id: crypto.randomUUID(),
-              userId: normalizeUserId(input.userId),
-              name: trimmedName,
-              quantity: normalizeQuantity(input.quantity),
-              unit: normalizeUnit(input.unit),
-              category: normalizeCategory(input.category),
-              expiryDate: normalizeExpiryDate(input.expiryDate),
-              createdAt: normalizeCreatedAt(input.createdAt),
-            },
-          ],
-        }));
-      },
-      removeItem: (id) => {
-        set((state) => ({
-          items: state.items.filter((item) => item.id !== id),
-        }));
-      },
-      updateItemQuantity: (id, quantity) => {
-        if (typeof quantity !== "number" || !Number.isFinite(quantity) || quantity <= 0) {
-          return;
-        }
+    set({
+      items: previousItems.map((item) =>
+        item.id === id ? { ...item, quantity } : item,
+      ),
+      isMutating: true,
+      error: null,
+    });
 
-        set((state) => ({
-          items: state.items.map((item) =>
-            item.id === id ? { ...item, quantity } : item,
-          ),
-        }));
-      },
-      clearItems: () => set({ items: [] }),
-    }),
-    {
-      name: PANTRY_STORAGE_KEY,
-      version: PANTRY_STORE_VERSION,
-      partialize: (state): PersistedPantryState => ({ items: state.items }),
-      migrate: (persistedState): PersistedPantryState => {
-        if (typeof persistedState !== "object" || persistedState === null) {
-          return { items: [] };
-        }
+    try {
+      const supabase = createClient();
+      await updatePantryItemQuantityApi(supabase, id, quantity);
+      set({ isMutating: false, error: null });
+      return true;
+    } catch (error) {
+      set({
+        items: previousItems,
+        isMutating: false,
+        error: getErrorMessage(error, "Unable to update item quantity."),
+      });
+      return false;
+    }
+  },
 
-        const { items } = persistedState as { items?: unknown };
-        if (!Array.isArray(items)) {
-          return { items: [] };
-        }
+  clearItems: async () => {
+    const previousItems = get().items;
+    if (previousItems.length === 0) {
+      return true;
+    }
 
-        return {
-          items: items
-            .map((item) => normalizePantryItem(item))
-            .filter((item): item is PantryItem => item !== null),
-        };
-      },
-    },
-  ),
-);
+    set({ items: [], isMutating: true, error: null });
+
+    try {
+      const supabase = createClient();
+      const userId = await getAuthenticatedUserId(supabase);
+      await deleteAllPantryItems(supabase, userId);
+      set({ isMutating: false, error: null });
+      return true;
+    } catch (error) {
+      set({
+        items: previousItems,
+        isMutating: false,
+        error: getErrorMessage(error, "Unable to clear pantry items."),
+      });
+      return false;
+    }
+  },
+}));
