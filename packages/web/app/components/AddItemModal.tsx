@@ -250,6 +250,7 @@ export function AddItemModal({
             type="date"
             value={expiryDate}
             onChange={(event) => setExpiryDate(event.target.value)}
+            placeholder={t("form.expiryPlaceholder")}
             disabled={busy}
           />
         </div>
