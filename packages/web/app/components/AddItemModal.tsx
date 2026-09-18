@@ -29,7 +29,7 @@ const CATEGORY_MESSAGE_KEYS: Record<PantryCategory, MessageKey> = {
 };
 
 const selectClassName =
-  "h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2";
+  "h-10 w-full min-w-0 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2";
 
 export interface AddItemModalProps {
   open: boolean;
@@ -171,7 +171,7 @@ export function AddItemModal({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
+          <div className="flex min-w-0 flex-col gap-2">
             <label
               htmlFor="item-quantity"
               className="text-sm font-medium text-zinc-700"
@@ -191,7 +191,7 @@ export function AddItemModal({
             />
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex min-w-0 flex-col gap-2">
             <label
               htmlFor="item-unit"
               className="text-sm font-medium text-zinc-700"
@@ -213,7 +213,7 @@ export function AddItemModal({
             </select>
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
             <label
               htmlFor="item-category"
               className="text-sm font-medium text-zinc-700"
@@ -236,22 +236,22 @@ export function AddItemModal({
               ))}
             </select>
           </div>
+        </div>
 
-          <div className="flex flex-col gap-2">
-            <label
-              htmlFor="item-expiry"
-              className="text-sm font-medium text-zinc-700"
-            >
-              {t("form.expiry")}
-            </label>
-            <Input
-              id="item-expiry"
-              type="date"
-              value={expiryDate}
-              onChange={(event) => setExpiryDate(event.target.value)}
-              disabled={busy}
-            />
-          </div>
+        <div className="flex min-w-0 flex-col gap-2">
+          <label
+            htmlFor="item-expiry"
+            className="text-sm font-medium text-zinc-700"
+          >
+            {t("form.expiry")}
+          </label>
+          <Input
+            id="item-expiry"
+            type="date"
+            value={expiryDate}
+            onChange={(event) => setExpiryDate(event.target.value)}
+            disabled={busy}
+          />
         </div>
       </form>
     </Modal>
