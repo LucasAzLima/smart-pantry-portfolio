@@ -7,8 +7,10 @@ import {
   updatePantryItem,
 } from "@/lib/supabase/pantryApi";
 import type { PantryItem } from "@/lib/supabase/pantryItem";
+import { useInventoryFilterStore } from "@/store/useInventoryFilterStore";
 import { useLocaleStore } from "@/store/useLocaleStore";
 import { usePantryStore } from "@/store/usePantryStore";
+import { DEFAULT_PANTRY_SORT } from "@/lib/sortPantryItems";
 
 jest.mock("@/lib/supabase/client", () => ({
   createClient: jest.fn(() => ({})),
@@ -59,6 +61,10 @@ describe("PantryDemo", () => {
         status: "idle",
         error: null,
         isMutating: false,
+      });
+      useInventoryFilterStore.setState({
+        category: "all",
+        sortBy: DEFAULT_PANTRY_SORT,
       });
       useLocaleStore.setState({ locale: "en-US" });
       useLocaleStore.persist.clearStorage();
@@ -168,5 +174,52 @@ describe("PantryDemo", () => {
     );
     expect(screen.getByText("Almond milk")).toBeInTheDocument();
     expect(screen.queryByText("Milk")).not.toBeInTheDocument();
+  });
+
+  it("sorts inventory items from the sort control", async () => {
+    const user = userEvent.setup();
+    mockedListPantryItems.mockResolvedValue([
+      makeItem({
+        id: "a",
+        name: "Zucchini",
+        quantity: 1,
+        expiryDate: "2026-12-01",
+      }),
+      makeItem({
+        id: "b",
+        name: "Apples",
+        quantity: 5,
+        expiryDate: "2026-09-25",
+      }),
+      makeItem({
+        id: "c",
+        name: "Bread",
+        quantity: 2,
+        expiryDate: "",
+      }),
+    ]);
+
+    render(<PantryDemo />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Zucchini")).toBeInTheDocument();
+    });
+
+    const list = screen.getByRole("list", { name: "Pantry items" });
+    const names = () =>
+      within(list)
+        .getAllByRole("heading", { level: 3 })
+        .map((heading) => heading.textContent);
+
+    expect(names()).toEqual(["Apples", "Bread", "Zucchini"]);
+
+    await user.selectOptions(screen.getByLabelText("Sort by"), "expiry-asc");
+    expect(names()).toEqual(["Apples", "Zucchini", "Bread"]);
+
+    await user.selectOptions(
+      screen.getByLabelText("Sort by"),
+      "quantity-desc",
+    );
+    expect(names()).toEqual(["Apples", "Bread", "Zucchini"]);
   });
 });
