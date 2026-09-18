@@ -1,6 +1,7 @@
 "use client";
 
 import { AppHeader } from "./AppHeader";
+import { FloatingLanguageSelector } from "./FloatingLanguageSelector";
 import { PantryDemo } from "./PantryDemo";
 import { useTranslation } from "@/i18n/useTranslation";
 
@@ -28,6 +29,7 @@ export function HomeContent({ userEmail }: HomeContentProps) {
         </div>
         <PantryDemo />
       </main>
+      <FloatingLanguageSelector />
     </div>
   );
 }
