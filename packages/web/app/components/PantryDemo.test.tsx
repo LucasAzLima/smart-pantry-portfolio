@@ -6,7 +6,9 @@ import {
   listPantryItems,
   updatePantryItem,
 } from "@/lib/supabase/pantryApi";
+import type { ListPantryItemsResult } from "@/lib/supabase/pantryApi";
 import type { PantryItem } from "@/lib/supabase/pantryItem";
+import { DEFAULT_INVENTORY_PAGE_SIZE } from "@/lib/paginateItems";
 import { useInventoryFilterStore } from "@/store/useInventoryFilterStore";
 import { useLocaleStore } from "@/store/useLocaleStore";
 import { usePantryStore } from "@/store/usePantryStore";
@@ -48,16 +50,46 @@ function makeItem(overrides: Partial<PantryItem> = {}): PantryItem {
   };
 }
 
+function makeListResult(
+  items: PantryItem[],
+  overrides: Partial<ListPantryItemsResult> = {},
+): ListPantryItemsResult {
+  const totalCount = overrides.totalCount ?? items.length;
+  const pageSize = overrides.pageSize ?? DEFAULT_INVENTORY_PAGE_SIZE;
+  return {
+    items,
+    totalCount,
+    inventoryTotal: overrides.inventoryTotal ?? totalCount,
+    page: overrides.page ?? 1,
+    pageSize,
+    totalPages:
+      overrides.totalPages ??
+      (totalCount === 0 ? 0 : Math.ceil(totalCount / pageSize)),
+  };
+}
+
 describe("PantryDemo", () => {
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
     mockedGetAuthenticatedUserId.mockResolvedValue("user-1");
-    mockedListPantryItems.mockResolvedValue([]);
+    mockedListPantryItems.mockResolvedValue(makeListResult([]));
 
     act(() => {
       usePantryStore.setState({
         items: [],
+        totalCount: 0,
+        inventoryTotal: 0,
+        page: 1,
+        pageSize: DEFAULT_INVENTORY_PAGE_SIZE,
+        totalPages: 0,
+        query: {
+          search: "",
+          category: "all",
+          sortBy: DEFAULT_PANTRY_SORT,
+          page: 1,
+          pageSize: DEFAULT_INVENTORY_PAGE_SIZE,
+        },
         status: "idle",
         error: null,
         isMutating: false,
@@ -107,7 +139,7 @@ describe("PantryDemo", () => {
       ).toBeInTheDocument();
     });
 
-    mockedListPantryItems.mockResolvedValue([]);
+    mockedListPantryItems.mockResolvedValue(makeListResult([]));
 
     await user.click(screen.getByRole("button", { name: "Try again" }));
 
@@ -129,7 +161,7 @@ describe("PantryDemo", () => {
       expiryDate: "2026-11-01",
     });
 
-    mockedListPantryItems.mockResolvedValue([item]);
+    mockedListPantryItems.mockResolvedValue(makeListResult([item]));
     mockedUpdatePantryItem.mockResolvedValue(updated);
 
     render(<PantryDemo />);
@@ -137,6 +169,8 @@ describe("PantryDemo", () => {
     await waitFor(() => {
       expect(screen.getByText("Milk")).toBeInTheDocument();
     });
+
+    mockedListPantryItems.mockResolvedValue(makeListResult([updated]));
 
     await user.click(screen.getByRole("button", { name: "Edit Milk" }));
 
@@ -176,28 +210,48 @@ describe("PantryDemo", () => {
     expect(screen.queryByText("Milk")).not.toBeInTheDocument();
   });
 
-  it("sorts inventory items from the sort control", async () => {
+  it("requests a new sort from the server when the sort control changes", async () => {
     const user = userEvent.setup();
-    mockedListPantryItems.mockResolvedValue([
+    const nameSorted = [
+      makeItem({ id: "b", name: "Apples", quantity: 5, expiryDate: "2026-09-25" }),
+      makeItem({ id: "c", name: "Bread", quantity: 2, expiryDate: "" }),
       makeItem({
         id: "a",
         name: "Zucchini",
         quantity: 1,
         expiryDate: "2026-12-01",
       }),
+    ];
+    const expirySorted = [
+      makeItem({ id: "b", name: "Apples", quantity: 5, expiryDate: "2026-09-25" }),
       makeItem({
-        id: "b",
-        name: "Apples",
-        quantity: 5,
-        expiryDate: "2026-09-25",
+        id: "a",
+        name: "Zucchini",
+        quantity: 1,
+        expiryDate: "2026-12-01",
       }),
+      makeItem({ id: "c", name: "Bread", quantity: 2, expiryDate: "" }),
+    ];
+    const quantitySorted = [
+      makeItem({ id: "b", name: "Apples", quantity: 5, expiryDate: "2026-09-25" }),
+      makeItem({ id: "c", name: "Bread", quantity: 2, expiryDate: "" }),
       makeItem({
-        id: "c",
-        name: "Bread",
-        quantity: 2,
-        expiryDate: "",
+        id: "a",
+        name: "Zucchini",
+        quantity: 1,
+        expiryDate: "2026-12-01",
       }),
-    ]);
+    ];
+
+    mockedListPantryItems.mockImplementation(async (_client, _userId, query) => {
+      if (query?.sortBy === "expiry-asc") {
+        return makeListResult(expirySorted);
+      }
+      if (query?.sortBy === "quantity-desc") {
+        return makeListResult(quantitySorted);
+      }
+      return makeListResult(nameSorted);
+    });
 
     render(<PantryDemo />);
 
@@ -214,26 +268,65 @@ describe("PantryDemo", () => {
     expect(names()).toEqual(["Apples", "Bread", "Zucchini"]);
 
     await user.selectOptions(screen.getByLabelText("Sort by"), "expiry-asc");
-    expect(names()).toEqual(["Apples", "Zucchini", "Bread"]);
+
+    await waitFor(() => {
+      expect(names()).toEqual(["Apples", "Zucchini", "Bread"]);
+    });
+    expect(mockedListPantryItems).toHaveBeenCalledWith(
+      expect.anything(),
+      "user-1",
+      expect.objectContaining({ sortBy: "expiry-asc", page: 1 }),
+    );
 
     await user.selectOptions(
       screen.getByLabelText("Sort by"),
       "quantity-desc",
     );
-    expect(names()).toEqual(["Apples", "Bread", "Zucchini"]);
+
+    await waitFor(() => {
+      expect(names()).toEqual(["Apples", "Bread", "Zucchini"]);
+    });
+    expect(mockedListPantryItems).toHaveBeenCalledWith(
+      expect.anything(),
+      "user-1",
+      expect.objectContaining({ sortBy: "quantity-desc", page: 1 }),
+    );
   });
 
-  it("paginates the inventory list when there are more than one page of items", async () => {
+  it("paginates the inventory list through server-side page requests", async () => {
     const user = userEvent.setup();
-    mockedListPantryItems.mockResolvedValue(
-      Array.from({ length: 7 }, (_, index) =>
-        makeItem({
-          id: `item-${index + 1}`,
-          name: `Item ${String(index + 1).padStart(2, "0")}`,
-          quantity: index + 1,
-        }),
-      ),
+    const pageOne = Array.from({ length: 6 }, (_, index) =>
+      makeItem({
+        id: `item-${index + 1}`,
+        name: `Item ${String(index + 1).padStart(2, "0")}`,
+        quantity: index + 1,
+      }),
     );
+    const pageTwo = [
+      makeItem({
+        id: "item-7",
+        name: "Item 07",
+        quantity: 7,
+      }),
+    ];
+
+    mockedListPantryItems.mockImplementation(async (_client, _userId, query) => {
+      if (query?.page === 2) {
+        return makeListResult(pageTwo, {
+          totalCount: 7,
+          inventoryTotal: 7,
+          page: 2,
+          totalPages: 2,
+        });
+      }
+
+      return makeListResult(pageOne, {
+        totalCount: 7,
+        inventoryTotal: 7,
+        page: 1,
+        totalPages: 2,
+      });
+    });
 
     render(<PantryDemo />);
 
@@ -248,9 +341,16 @@ describe("PantryDemo", () => {
 
     await user.click(screen.getByRole("button", { name: "Next" }));
 
-    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+    });
     expect(screen.getByText("Item 07")).toBeInTheDocument();
     expect(screen.queryByText("Item 01")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(mockedListPantryItems).toHaveBeenCalledWith(
+      expect.anything(),
+      "user-1",
+      expect.objectContaining({ page: 2 }),
+    );
   });
 });

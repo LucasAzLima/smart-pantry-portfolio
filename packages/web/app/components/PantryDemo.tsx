@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Card, Input } from "@smart-pantry/ui";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AddItemModal } from "./AddItemModal";
 import { InventoryPagination } from "./InventoryPagination";
 import { RemoveItemModal } from "./RemoveItemModal";
@@ -9,18 +9,10 @@ import {
   calculateExpiryStatus,
   type ExpiryStatus,
 } from "@/lib/expiryUtils";
-import {
-  filterPantryItems,
-  type CategoryFilter,
-} from "@/lib/filterPantryItems";
-import {
-  DEFAULT_INVENTORY_PAGE_SIZE,
-  paginateItems,
-} from "@/lib/paginateItems";
+import type { CategoryFilter } from "@/lib/filterPantryItems";
 import {
   isPantrySortOption,
   PANTRY_SORT_OPTIONS,
-  sortPantryItems,
   type PantrySortOption,
 } from "@/lib/sortPantryItems";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -137,7 +129,6 @@ export function PantryDemo() {
   } | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(1);
   const debouncedSearchQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS);
 
   const categoryFilter = useInventoryFilterStore((state) => state.category);
@@ -148,6 +139,10 @@ export function PantryDemo() {
   const setSortBy = useInventoryFilterStore((state) => state.setSortBy);
 
   const items = usePantryStore((state) => state.items);
+  const totalCount = usePantryStore((state) => state.totalCount);
+  const inventoryTotal = usePantryStore((state) => state.inventoryTotal);
+  const page = usePantryStore((state) => state.page);
+  const totalPages = usePantryStore((state) => state.totalPages);
   const status = usePantryStore((state) => state.status);
   const error = usePantryStore((state) => state.error);
   const isMutating = usePantryStore((state) => state.isMutating);
@@ -158,59 +153,53 @@ export function PantryDemo() {
   const clearError = usePantryStore((state) => state.clearError);
 
   useEffect(() => {
-    void fetchItems();
-  }, [fetchItems]);
-
-  const filteredItems = useMemo(() => {
-    const filtered = filterPantryItems(items, {
-      query: debouncedSearchQuery,
+    void fetchItems({
+      search: debouncedSearchQuery,
       category: categoryFilter,
+      sortBy,
+      page: 1,
     });
-    return sortPantryItems(filtered, sortBy);
-  }, [items, debouncedSearchQuery, categoryFilter, sortBy]);
-
-  const pagination = useMemo(
-    () => paginateItems(filteredItems, page, DEFAULT_INVENTORY_PAGE_SIZE),
-    [filteredItems, page],
-  );
-
-  const pagedItems = pagination.items;
+  }, [fetchItems, debouncedSearchQuery, categoryFilter, sortBy]);
 
   const hasActiveFilters =
     debouncedSearchQuery.trim().length > 0 || categoryFilter !== "all";
 
+  const isEmptyPantry = inventoryTotal === 0 && !hasActiveFilters;
+  const hasNoMatches = totalCount === 0 && hasActiveFilters;
+
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    setPage(1);
   };
 
   const handleCategoryChange = (filter: CategoryFilter) => {
     setCategoryFilter(filter);
-    setPage(1);
   };
 
   const handleSortChange = (nextSort: PantrySortOption) => {
     setSortBy(nextSort);
-    setPage(1);
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    void fetchItems({ page: nextPage });
   };
 
   const itemCountLabel = (() => {
-    if (items.length === 0) {
+    if (inventoryTotal === 0 && !hasActiveFilters) {
       return t("inventory.countZero");
     }
 
     if (hasActiveFilters) {
       return t("inventory.countFiltered", {
-        filtered: filteredItems.length,
-        total: items.length,
+        filtered: totalCount,
+        total: inventoryTotal,
       });
     }
 
-    if (items.length === 1) {
+    if (inventoryTotal === 1) {
       return t("inventory.countOne");
     }
 
-    return t("inventory.countMany", { count: items.length });
+    return t("inventory.countMany", { count: inventoryTotal });
   })();
 
   const mutationError =
@@ -251,7 +240,9 @@ export function PantryDemo() {
             type="button"
             variant="outline"
             onClick={handleClearAll}
-            disabled={items.length === 0 || isMutating || status === "loading"}
+            disabled={
+              inventoryTotal === 0 || isMutating || status === "loading"
+            }
           >
             {t("form.clearAll")}
           </Button>
@@ -316,11 +307,20 @@ export function PantryDemo() {
         ) : status === "error" ? (
           <div className="flex flex-col items-start gap-4 rounded-2xl border border-red-200 bg-red-50 px-6 py-10">
             <p className="text-sm text-red-800">{t("inventory.loadError")}</p>
-            <Button type="button" onClick={() => void fetchItems()}>
+            <Button
+              type="button"
+              onClick={() =>
+                void fetchItems({
+                  search: debouncedSearchQuery,
+                  category: categoryFilter,
+                  sortBy,
+                })
+              }
+            >
               {t("inventory.retry")}
             </Button>
           </div>
-        ) : items.length === 0 ? (
+        ) : isEmptyPantry ? (
           <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-10">
             <p className="text-sm text-zinc-500">{t("inventory.empty")}</p>
           </div>
@@ -392,7 +392,7 @@ export function PantryDemo() {
               </div>
             </div>
 
-            {filteredItems.length === 0 ? (
+            {hasNoMatches ? (
               <p className="text-sm text-zinc-500">{t("inventory.noMatches")}</p>
             ) : (
               <div className="flex flex-col gap-4">
@@ -400,7 +400,7 @@ export function PantryDemo() {
                   className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
                   aria-label={t("inventory.listAria")}
                 >
-                  {pagedItems.map((item) => (
+                  {items.map((item) => (
                     <li key={item.id} className="min-w-0">
                       <Card
                         padding="none"
@@ -529,15 +529,15 @@ export function PantryDemo() {
                 </ul>
 
                 <InventoryPagination
-                  page={pagination.page}
-                  totalPages={pagination.totalPages}
-                  hasPreviousPage={pagination.hasPreviousPage}
-                  hasNextPage={pagination.hasNextPage}
+                  page={page}
+                  totalPages={totalPages}
+                  hasPreviousPage={page > 1}
+                  hasNextPage={totalPages > 0 && page < totalPages}
                   onPrevious={() => {
-                    setPage(Math.max(1, pagination.page - 1));
+                    handlePageChange(Math.max(1, page - 1));
                   }}
                   onNext={() => {
-                    setPage(pagination.page + 1);
+                    handlePageChange(page + 1);
                   }}
                 />
               </div>
