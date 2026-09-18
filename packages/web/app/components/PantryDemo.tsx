@@ -12,6 +12,7 @@ import {
   filterPantryItems,
   type CategoryFilter,
 } from "@/lib/filterPantryItems";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useTranslation } from "@/i18n/useTranslation";
 import type { MessageKey } from "@/i18n/messages";
 import {
@@ -19,6 +20,8 @@ import {
   type PantryItem,
   usePantryStore,
 } from "@/store/usePantryStore";
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 const CATEGORY_FILTERS: readonly CategoryFilter[] = [
   "all",
@@ -113,6 +116,7 @@ export function PantryDemo() {
   } | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 
   const items = usePantryStore((state) => state.items);
@@ -132,14 +136,14 @@ export function PantryDemo() {
   const filteredItems = useMemo(
     () =>
       filterPantryItems(items, {
-        query: searchQuery,
+        query: debouncedSearchQuery,
         category: categoryFilter,
       }),
-    [items, searchQuery, categoryFilter],
+    [items, debouncedSearchQuery, categoryFilter],
   );
 
   const hasActiveFilters =
-    searchQuery.trim().length > 0 || categoryFilter !== "all";
+    debouncedSearchQuery.trim().length > 0 || categoryFilter !== "all";
 
   const itemCountLabel = (() => {
     if (items.length === 0) {
