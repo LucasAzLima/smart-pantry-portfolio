@@ -13,7 +13,7 @@ const meta = {
   argTypes: {
     type: {
       control: "select",
-      options: ["text", "number", "email", "search"],
+      options: ["text", "number", "email", "search", "date"],
     },
     disabled: {
       control: "boolean",
@@ -50,11 +50,19 @@ export const WithError: Story = {
   },
 };
 
+export const Date: Story = {
+  args: {
+    type: "date",
+    defaultValue: "2026-09-25",
+  },
+};
+
 export const AllStates: Story = {
   render: () => (
     <div className="flex w-72 flex-col gap-4">
       <Input placeholder="Default" />
       <Input type="number" placeholder="Quantity" />
+      <Input type="date" defaultValue="2026-09-25" />
       <Input disabled defaultValue="Disabled" />
       <Input error="Enter a valid name" defaultValue="!" />
     </div>

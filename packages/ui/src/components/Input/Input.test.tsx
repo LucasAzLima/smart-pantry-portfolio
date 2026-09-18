@@ -33,6 +33,14 @@ describe("Input", () => {
     expect(screen.getByRole("textbox", { name: "Item name" })).toBeDisabled();
   });
 
+  it("keeps a date input inside its box with a contained appearance", () => {
+    render(<Input type="date" aria-label="Expiry date" />);
+
+    const input = screen.getByLabelText("Expiry date");
+    expect(input).toHaveAttribute("type", "date");
+    expect(input).toHaveClass("appearance-none", "min-w-0", "max-w-full");
+  });
+
   it("shows an error message and marks the input invalid", () => {
     render(<Input error="Name is required" aria-label="Item name" />);
 

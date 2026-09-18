@@ -4,3 +4,25 @@
 body {
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
+
+input[type="date"] {
+  color-scheme: light;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type="date"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+  padding: 0;
+  background-color: transparent;
+  color: inherit;
+}
+
+input[type="date"]::-webkit-date-and-time-value {
+  min-height: 1.5em;
+  text-align: left;
+}
