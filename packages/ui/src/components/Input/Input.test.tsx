@@ -33,12 +33,34 @@ describe("Input", () => {
     expect(screen.getByRole("textbox", { name: "Item name" })).toBeDisabled();
   });
 
-  it("keeps a date input inside its box with a contained appearance", () => {
-    render(<Input type="date" aria-label="Expiry date" />);
+  it("renders a date input and shows the selected value in the visible field", () => {
+    render(
+      <Input
+        type="date"
+        aria-label="Expiry date"
+        value="2026-09-18"
+        onChange={() => undefined}
+      />,
+    );
 
     const input = screen.getByLabelText("Expiry date");
     expect(input).toHaveAttribute("type", "date");
-    expect(input).toHaveClass("appearance-none", "min-w-0", "max-w-full");
+    expect(input).toHaveValue("2026-09-18");
+    expect(screen.getByText(/2026/)).toBeInTheDocument();
+  });
+
+  it("shows a placeholder when the date value is empty", () => {
+    render(
+      <Input
+        type="date"
+        aria-label="Expiry date"
+        value=""
+        placeholder="Optional"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Optional")).toBeInTheDocument();
   });
 
   it("shows an error message and marks the input invalid", () => {
