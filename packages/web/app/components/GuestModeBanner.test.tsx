@@ -16,7 +16,7 @@ describe("GuestModeBanner", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /create account to save/i }),
-    ).toHaveAttribute("href", "/login");
+    ).toHaveAttribute("href", "/login?mode=signUp");
     expect(
       screen.queryByRole("link", { name: /^sign in$/i }),
     ).not.toBeInTheDocument();

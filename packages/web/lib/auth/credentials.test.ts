@@ -1,5 +1,6 @@
 import {
   validateAuthCredentials,
+  validateFullName,
 } from "./credentials";
 
 describe("validateAuthCredentials", () => {
@@ -24,6 +25,29 @@ describe("validateAuthCredentials", () => {
     expect(validateAuthCredentials("user@example.com", "123")).toEqual({
       ok: false,
       errorKey: "auth.error.passwordTooShort",
+    });
+  });
+});
+
+describe("validateFullName", () => {
+  it("accepts a trimmed full name", () => {
+    expect(validateFullName("  Lucas Lima  ")).toEqual({
+      ok: true,
+      fullName: "Lucas Lima",
+    });
+  });
+
+  it("rejects an empty name", () => {
+    expect(validateFullName("   ")).toEqual({
+      ok: false,
+      errorKey: "auth.error.nameRequired",
+    });
+  });
+
+  it("rejects a name that is too short", () => {
+    expect(validateFullName("A")).toEqual({
+      ok: false,
+      errorKey: "auth.error.nameTooShort",
     });
   });
 });

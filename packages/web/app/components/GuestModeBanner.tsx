@@ -20,7 +20,7 @@ export function GuestModeBanner() {
         <p className="text-sm text-sky-900/90">{t("guest.bannerMessage")}</p>
       </div>
       <div className="shrink-0">
-        <Link href="/login">
+        <Link href="/login?mode=signUp">
           <Button type="button" size="sm">
             {t("guest.createAccount")}
           </Button>

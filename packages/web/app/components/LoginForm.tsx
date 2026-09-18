@@ -10,9 +10,15 @@ import type { MessageKey } from "@/i18n/messages";
 
 type AuthMode = "signIn" | "signUp";
 
+export interface LoginFormProps {
+  initialMode?: AuthMode;
+}
+
 const AUTH_ERROR_KEYS = new Set<MessageKey>([
   "auth.error.invalidEmail",
   "auth.error.passwordTooShort",
+  "auth.error.nameRequired",
+  "auth.error.nameTooShort",
 ]);
 
 function resolveAuthMessage(
@@ -26,9 +32,10 @@ function resolveAuthMessage(
   return value;
 }
 
-export function LoginForm() {
+export function LoginForm({ initialMode = "signIn" }: LoginFormProps) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<AuthMode>("signIn");
+  const [mode, setMode] = useState<AuthMode>(initialMode);
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +122,30 @@ export function LoginForm() {
       </div>
 
       <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+        {mode === "signUp" ? (
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="auth-name"
+              className="text-sm font-medium text-zinc-700"
+            >
+              {t("auth.name")}
+            </label>
+            <Input
+              id="auth-name"
+              name="name"
+              type="text"
+              autoComplete="name"
+              required
+              minLength={2}
+              maxLength={100}
+              value={fullName}
+              disabled={isPending}
+              onChange={(event) => setFullName(event.target.value)}
+              placeholder={t("auth.namePlaceholder")}
+            />
+          </div>
+        ) : null}
+
         <div className="flex flex-col gap-1.5">
           <label htmlFor="auth-email" className="text-sm font-medium text-zinc-700">
             {t("auth.email")}

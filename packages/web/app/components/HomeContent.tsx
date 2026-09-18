@@ -8,15 +8,23 @@ import { useTranslation } from "@/i18n/useTranslation";
 
 export interface HomeContentProps {
   userEmail: string | null;
+  userName?: string | null;
 }
 
-export function HomeContent({ userEmail }: HomeContentProps) {
+export function HomeContent({
+  userEmail,
+  userName = null,
+}: HomeContentProps) {
   const { t } = useTranslation();
   const isAuthenticated = userEmail !== null;
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-[#f4f6f8] font-sans text-zinc-900">
-      <AppHeader userEmail={userEmail} isGuest={!isAuthenticated} />
+      <AppHeader
+        userEmail={userEmail}
+        userName={userName}
+        isGuest={!isAuthenticated}
+      />
       <main
         id="dashboard"
         className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10"

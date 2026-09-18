@@ -1,7 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { validateAuthCredentials } from "@/lib/auth/credentials";
+import {
+  validateAuthCredentials,
+  validateFullName,
+} from "@/lib/auth/credentials";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type AuthActionResult =
@@ -35,6 +39,12 @@ export async function signIn(formData: FormData): Promise<AuthActionResult> {
 }
 
 export async function signUp(formData: FormData): Promise<AuthActionResult> {
+  const nameValidation = validateFullName(readField(formData, "name"));
+
+  if (!nameValidation.ok) {
+    return { ok: false, error: nameValidation.errorKey };
+  }
+
   const validation = validateAuthCredentials(
     readField(formData, "email"),
     readField(formData, "password"),
@@ -45,7 +55,14 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp(validation.credentials);
+  const { data, error } = await supabase.auth.signUp({
+    ...validation.credentials,
+    options: {
+      data: {
+        full_name: nameValidation.fullName,
+      },
+    },
+  });
 
   if (error) {
     return { ok: false, error: error.message };
@@ -62,6 +79,41 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
 
 export async function signOut(): Promise<void> {
   const supabase = await createClient();
+  await supabase.auth.signOut();
+  redirect("/login");
+}
+
+/**
+ * Deletes the authenticated user's Auth account (pantry rows cascade via FK).
+ * Uses the service-role admin API, then clears the session.
+ */
+export async function deleteAccount(): Promise<AuthActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { ok: false, error: "auth.error.notAuthenticated" };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch (caught) {
+    const message =
+      caught instanceof Error ? caught.message : "Unknown admin client error";
+    console.error("[deleteAccount]", message);
+    return { ok: false, error: "auth.error.deleteUnavailable" };
+  }
+
+  const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
+
+  if (deleteError) {
+    return { ok: false, error: deleteError.message };
+  }
+
   await supabase.auth.signOut();
   redirect("/login");
 }
