@@ -4,6 +4,7 @@ import { Button, Input, Modal } from "@smart-pantry/ui";
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "@/i18n/useTranslation";
 import type { MessageKey } from "@/i18n/messages";
+import { maskExpiryDateInput } from "@/lib/expiryUtils";
 import {
   type PantryCategory,
   type PantryItem,
@@ -43,7 +44,7 @@ function getInitialFormValues(item: PantryItem | null) {
     quantity: item ? String(item.quantity) : "1",
     unit: item?.unit ?? "units",
     category: item?.category ?? "pantry",
-    expiryDate: item?.expiryDate ?? "",
+    expiryDate: maskExpiryDateInput(item?.expiryDate ?? ""),
   };
 }
 
@@ -247,10 +248,16 @@ export function AddItemModal({
           </label>
           <Input
             id="item-expiry"
-            type="date"
-            value={expiryDate}
-            onChange={(event) => setExpiryDate(event.target.value)}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            spellCheck={false}
+            maxLength={10}
             placeholder={t("form.expiryPlaceholder")}
+            value={expiryDate}
+            onChange={(event) =>
+              setExpiryDate(maskExpiryDateInput(event.target.value))
+            }
             disabled={busy}
           />
         </div>
