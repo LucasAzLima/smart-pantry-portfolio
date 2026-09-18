@@ -46,9 +46,8 @@ body {
 }
 
 /*
-  iOS Safari paints a native date-control layer that ignores border-radius
-  and can overflow the field as a white box. Strip that appearance and keep
-  the inner editor inside the input.
+  iOS Safari paints an opaque native date layer that sits off-center inside
+  the field. Hide that chrome; Input renders the visible value itself.
 */
 input[type="date"] {
   color-scheme: light;
@@ -61,13 +60,14 @@ input[type="date"]::-webkit-datetime-edit-fields-wrapper,
 input[type="date"]::-webkit-datetime-edit-text,
 input[type="date"]::-webkit-datetime-edit-month-field,
 input[type="date"]::-webkit-datetime-edit-day-field,
-input[type="date"]::-webkit-datetime-edit-year-field {
+input[type="date"]::-webkit-datetime-edit-year-field,
+input[type="date"]::-webkit-date-and-time-value {
+  margin: 0;
   padding: 0;
   background-color: transparent;
-  color: inherit;
+  color: transparent;
 }
 
-input[type="date"]::-webkit-date-and-time-value {
-  min-height: 1.5em;
-  text-align: left;
+input[type="date"]::-webkit-calendar-picker-indicator {
+  display: none;
 }

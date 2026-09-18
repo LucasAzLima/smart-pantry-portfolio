@@ -24,6 +24,7 @@
   "form.unit": "Unit",
   "form.category": "Category",
   "form.expiry": "Expiry date",
+  "form.expiryPlaceholder": "Optional",
   "form.addItem": "Add item",
   "form.saveItem": "Save",
   "form.addNewItem": "Add new item",
