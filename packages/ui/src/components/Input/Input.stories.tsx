@@ -54,6 +54,15 @@ export const Date: Story = {
   args: {
     type: "date",
     defaultValue: "2026-09-25",
+    placeholder: "Optional",
+  },
+};
+
+export const DateEmpty: Story = {
+  args: {
+    type: "date",
+    defaultValue: "",
+    placeholder: "Optional",
   },
 };
 
@@ -63,6 +72,7 @@ export const AllStates: Story = {
       <Input placeholder="Default" />
       <Input type="number" placeholder="Quantity" />
       <Input type="date" defaultValue="2026-09-25" />
+      <Input type="date" placeholder="Optional" />
       <Input disabled defaultValue="Disabled" />
       <Input error="Enter a valid name" defaultValue="!" />
     </div>
