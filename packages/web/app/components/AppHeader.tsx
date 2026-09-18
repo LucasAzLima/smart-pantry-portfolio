@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LanguageSelector } from "./FloatingLanguageSelector";
 import { SignOutButton } from "./SignOutButton";
 import { useTranslation } from "@/i18n/useTranslation";
 
@@ -33,7 +34,8 @@ export function AppHeader({ userEmail }: AppHeaderProps) {
             </a>
           </nav>
         </div>
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
+          <LanguageSelector className="sm:hidden" />
           {userEmail ? (
             <div className="hidden min-w-0 items-center gap-3 sm:flex">
               <span

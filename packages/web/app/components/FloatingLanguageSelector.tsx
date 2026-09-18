@@ -13,7 +13,15 @@ const LOCALE_OPTIONS: ReadonlyArray<{
   { locale: "pt-BR", labelKey: "language.pt" },
 ];
 
-export function FloatingLanguageSelector() {
+function joinClasses(...classes: Array<string | false | undefined>): string {
+  return classes.filter(Boolean).join(" ");
+}
+
+export interface LanguageSelectorProps {
+  className?: string;
+}
+
+export function LanguageSelector({ className = "" }: LanguageSelectorProps) {
   const { locale, setLocale, t } = useTranslation();
 
   useEffect(() => {
@@ -22,7 +30,10 @@ export function FloatingLanguageSelector() {
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white p-1 shadow-lg transition-shadow duration-200 ease-out hover:shadow-xl"
+      className={joinClasses(
+        "inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white p-1",
+        className,
+      )}
       role="group"
       aria-label={t("language.label")}
     >
@@ -41,6 +52,14 @@ export function FloatingLanguageSelector() {
           </Button>
         );
       })}
+    </div>
+  );
+}
+
+export function FloatingLanguageSelector() {
+  return (
+    <div className="fixed right-6 bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-40 hidden sm:block">
+      <LanguageSelector className="shadow-lg transition-shadow duration-200 ease-out hover:shadow-xl" />
     </div>
   );
 }
