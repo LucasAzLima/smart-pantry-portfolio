@@ -1,5 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { PantryItem } from "@/lib/supabase/pantryItem";
+import { DEFAULT_INVENTORY_PAGE_SIZE } from "@/lib/paginateItems";
+import { DEFAULT_PANTRY_SORT } from "@/lib/sortPantryItems";
 import { usePantryStore } from "./usePantryStore";
 
 const mockCreateClient = jest.fn();
@@ -51,6 +53,30 @@ function makeItem(overrides: Partial<PantryItem> = {}): PantryItem {
   };
 }
 
+function makeListResult(
+  items: PantryItem[],
+  overrides: {
+    totalCount?: number;
+    inventoryTotal?: number;
+    page?: number;
+    pageSize?: number;
+    totalPages?: number;
+  } = {},
+) {
+  const totalCount = overrides.totalCount ?? items.length;
+  const pageSize = overrides.pageSize ?? DEFAULT_INVENTORY_PAGE_SIZE;
+  return {
+    items,
+    totalCount,
+    inventoryTotal: overrides.inventoryTotal ?? totalCount,
+    page: overrides.page ?? 1,
+    pageSize,
+    totalPages:
+      overrides.totalPages ??
+      (totalCount === 0 ? 0 : Math.ceil(totalCount / pageSize)),
+  };
+}
+
 describe("usePantryStore", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -60,6 +86,19 @@ describe("usePantryStore", () => {
     act(() => {
       usePantryStore.setState({
         items: [],
+        userId: null,
+        totalCount: 0,
+        inventoryTotal: 0,
+        page: 1,
+        pageSize: DEFAULT_INVENTORY_PAGE_SIZE,
+        totalPages: 0,
+        query: {
+          search: "",
+          category: "all",
+          sortBy: DEFAULT_PANTRY_SORT,
+          page: 1,
+          pageSize: DEFAULT_INVENTORY_PAGE_SIZE,
+        },
         status: "idle",
         error: null,
         isMutating: false,
@@ -67,9 +106,38 @@ describe("usePantryStore", () => {
     });
   });
 
-  it("loads items for the authenticated user", async () => {
+  it("loads items for the authenticated user with query params", async () => {
     const items = [makeItem({ name: "Eggs" })];
-    mockListPantryItems.mockResolvedValue(items);
+    mockListPantryItems.mockResolvedValue(makeListResult(items));
+
+    const { result } = renderHook(() => usePantryStore());
+
+    await act(async () => {
+      await result.current.fetchItems({
+        search: "egg",
+        category: "fridge",
+        sortBy: "quantity-desc",
+        page: 2,
+      });
+    });
+
+    expect(mockGetAuthenticatedUserId).toHaveBeenCalledWith(supabaseStub);
+    expect(mockListPantryItems).toHaveBeenCalledWith(supabaseStub, "user-1", {
+      search: "egg",
+      category: "fridge",
+      sortBy: "quantity-desc",
+      page: 2,
+      pageSize: DEFAULT_INVENTORY_PAGE_SIZE,
+    });
+    expect(result.current.items).toEqual(items);
+    expect(result.current.userId).toBe("user-1");
+    expect(result.current.totalCount).toBe(1);
+    expect(result.current.status).toBe("idle");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("reuses the cached user id on subsequent fetches", async () => {
+    mockListPantryItems.mockResolvedValue(makeListResult([makeItem()]));
 
     const { result } = renderHook(() => usePantryStore());
 
@@ -77,11 +145,13 @@ describe("usePantryStore", () => {
       await result.current.fetchItems();
     });
 
-    expect(mockGetAuthenticatedUserId).toHaveBeenCalledWith(supabaseStub);
-    expect(mockListPantryItems).toHaveBeenCalledWith(supabaseStub, "user-1");
-    expect(result.current.items).toEqual(items);
-    expect(result.current.status).toBe("idle");
-    expect(result.current.error).toBeNull();
+    await act(async () => {
+      await result.current.fetchItems({ category: "fridge", page: 1 });
+    });
+
+    expect(mockGetAuthenticatedUserId).toHaveBeenCalledTimes(1);
+    expect(mockListPantryItems).toHaveBeenCalledTimes(2);
+    expect(result.current.userId).toBe("user-1");
   });
 
   it("stores a load error when fetch fails", async () => {
@@ -107,6 +177,7 @@ describe("usePantryStore", () => {
       expiryDate: "",
     });
     mockInsertPantryItem.mockResolvedValue(created);
+    mockListPantryItems.mockResolvedValue(makeListResult([created]));
 
     const { result } = renderHook(() => usePantryStore());
 
@@ -148,6 +219,7 @@ describe("usePantryStore", () => {
       expiryDate: "2026-12-01",
     });
     mockInsertPantryItem.mockResolvedValue(created);
+    mockListPantryItems.mockResolvedValue(makeListResult([created]));
 
     const { result } = renderHook(() => usePantryStore());
 
@@ -172,6 +244,9 @@ describe("usePantryStore", () => {
 
   it("falls back to defaults for invalid quantity and enums", async () => {
     mockInsertPantryItem.mockResolvedValue(makeItem({ name: "Eggs" }));
+    mockListPantryItems.mockResolvedValue(
+      makeListResult([makeItem({ name: "Eggs" })]),
+    );
 
     const { result } = renderHook(() => usePantryStore());
 
@@ -194,13 +269,18 @@ describe("usePantryStore", () => {
     });
   });
 
-  it("removes a single item by id with optimistic update", async () => {
+  it("removes a single item by id and reloads the current query", async () => {
     const first = makeItem({ id: "a", name: "Milk" });
     const second = makeItem({ id: "b", name: "Eggs" });
     mockDeletePantryItem.mockResolvedValue(undefined);
+    mockListPantryItems.mockResolvedValue(makeListResult([second]));
 
     act(() => {
-      usePantryStore.setState({ items: [first, second] });
+      usePantryStore.setState({
+        items: [first, second],
+        totalCount: 2,
+        inventoryTotal: 2,
+      });
     });
 
     const { result } = renderHook(() => usePantryStore());
@@ -210,6 +290,7 @@ describe("usePantryStore", () => {
     });
 
     expect(mockDeletePantryItem).toHaveBeenCalledWith(supabaseStub, "a");
+    expect(mockListPantryItems).toHaveBeenCalled();
     expect(result.current.items).toEqual([second]);
   });
 
@@ -218,7 +299,11 @@ describe("usePantryStore", () => {
     mockDeletePantryItem.mockRejectedValue(new Error("Delete failed"));
 
     act(() => {
-      usePantryStore.setState({ items: [item] });
+      usePantryStore.setState({
+        items: [item],
+        totalCount: 1,
+        inventoryTotal: 1,
+      });
     });
 
     const { result } = renderHook(() => usePantryStore());
@@ -233,7 +318,7 @@ describe("usePantryStore", () => {
     expect(result.current.error).toBe("Delete failed");
   });
 
-  it("updates an item optimistically and replaces it with the API result", async () => {
+  it("updates an item and reloads the current query", async () => {
     const item = makeItem({
       name: "Milk",
       quantity: 1,
@@ -250,9 +335,10 @@ describe("usePantryStore", () => {
       expiryDate: "2026-11-01",
     });
     mockUpdatePantryItem.mockResolvedValue(updated);
+    mockListPantryItems.mockResolvedValue(makeListResult([updated]));
 
     act(() => {
-      usePantryStore.setState({ items: [item] });
+      usePantryStore.setState({ items: [item], totalCount: 1, inventoryTotal: 1 });
     });
 
     const { result } = renderHook(() => usePantryStore());
@@ -371,6 +457,8 @@ describe("usePantryStore", () => {
     act(() => {
       usePantryStore.setState({
         items: [makeItem({ id: "a" }), makeItem({ id: "b", name: "Eggs" })],
+        inventoryTotal: 2,
+        totalCount: 2,
       });
     });
 
@@ -382,6 +470,7 @@ describe("usePantryStore", () => {
 
     expect(mockDeleteAllPantryItems).toHaveBeenCalledWith(supabaseStub, "user-1");
     expect(result.current.items).toHaveLength(0);
+    expect(result.current.inventoryTotal).toBe(0);
   });
 
   it("rolls back clearItems when the API fails", async () => {
@@ -389,7 +478,11 @@ describe("usePantryStore", () => {
     mockDeleteAllPantryItems.mockRejectedValue(new Error("Clear failed"));
 
     act(() => {
-      usePantryStore.setState({ items });
+      usePantryStore.setState({
+        items,
+        inventoryTotal: 1,
+        totalCount: 1,
+      });
     });
 
     const { result } = renderHook(() => usePantryStore());

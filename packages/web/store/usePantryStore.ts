@@ -2,6 +2,12 @@ import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import type { PantryCategory, PantryUnit } from "@/lib/supabase/database.types";
 import type { PantryItem } from "@/lib/supabase/pantryItem";
+import type { CategoryFilter } from "@/lib/filterPantryItems";
+import { DEFAULT_INVENTORY_PAGE_SIZE } from "@/lib/paginateItems";
+import {
+  DEFAULT_PANTRY_SORT,
+  type PantrySortOption,
+} from "@/lib/sortPantryItems";
 import {
   deleteAllPantryItems,
   deletePantryItem,
@@ -9,6 +15,7 @@ import {
   getErrorMessage,
   insertPantryItem,
   listPantryItems,
+  type ListPantryItemsQuery,
   updatePantryItem as updatePantryItemApi,
   updatePantryItemQuantity as updatePantryItemQuantityApi,
 } from "@/lib/supabase/pantryApi";
@@ -28,12 +35,28 @@ export interface AddPantryItemInput {
 
 export type UpdatePantryItemInput = AddPantryItemInput;
 
+export interface PantryListQuery {
+  search: string;
+  category: CategoryFilter;
+  sortBy: PantrySortOption;
+  page: number;
+  pageSize: number;
+}
+
 interface PantryState {
   items: PantryItem[];
+  /** Cached auth user id; avoids calling getUser on every filter/fetch. */
+  userId: string | null;
+  totalCount: number;
+  inventoryTotal: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  query: PantryListQuery;
   status: PantryStatus;
   error: string | null;
   isMutating: boolean;
-  fetchItems: () => Promise<void>;
+  fetchItems: (params?: Partial<PantryListQuery>) => Promise<void>;
   addItem: (input: AddPantryItemInput) => Promise<boolean>;
   removeItem: (id: string) => Promise<boolean>;
   updateItem: (id: string, input: UpdatePantryItemInput) => Promise<boolean>;
@@ -46,6 +69,14 @@ const DEFAULT_QUANTITY = 1;
 const DEFAULT_UNIT: PantryUnit = "units";
 const DEFAULT_CATEGORY: PantryCategory = "pantry";
 const DEFAULT_EXPIRY_DATE = "";
+
+const DEFAULT_QUERY: PantryListQuery = {
+  search: "",
+  category: "all",
+  sortBy: DEFAULT_PANTRY_SORT,
+  page: 1,
+  pageSize: DEFAULT_INVENTORY_PAGE_SIZE,
+};
 
 const PANTRY_UNITS: ReadonlySet<string> = new Set([
   "units",
@@ -93,8 +124,68 @@ function normalizeExpiryDate(value: string | undefined): string {
   return value.trim();
 }
 
+function mergeQuery(
+  current: PantryListQuery,
+  params: Partial<PantryListQuery> | undefined,
+): PantryListQuery {
+  if (!params) {
+    return current;
+  }
+
+  return {
+    search: params.search ?? current.search,
+    category: params.category ?? current.category,
+    sortBy: params.sortBy ?? current.sortBy,
+    page: params.page ?? current.page,
+    pageSize: params.pageSize ?? current.pageSize,
+  };
+}
+
+function toApiQuery(query: PantryListQuery): ListPantryItemsQuery {
+  return {
+    search: query.search,
+    category: query.category,
+    sortBy: query.sortBy,
+    page: query.page,
+    pageSize: query.pageSize,
+  };
+}
+
+type PantrySupabaseClient = ReturnType<typeof createClient>;
+
+async function resolveUserId(
+  supabase: PantrySupabaseClient,
+  get: () => PantryState,
+  set: (
+    partial:
+      | Partial<PantryState>
+      | ((state: PantryState) => Partial<PantryState>),
+  ) => void,
+): Promise<string> {
+  const cached = get().userId;
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const userId = await getAuthenticatedUserId(supabase);
+    set({ userId });
+    return userId;
+  } catch (error) {
+    set({ userId: null });
+    throw error;
+  }
+}
+
 export const usePantryStore = create<PantryState>((set, get) => ({
   items: [],
+  userId: null,
+  totalCount: 0,
+  inventoryTotal: 0,
+  page: 1,
+  pageSize: DEFAULT_INVENTORY_PAGE_SIZE,
+  totalPages: 0,
+  query: DEFAULT_QUERY,
   status: "idle",
   error: null,
   isMutating: false,
@@ -103,14 +194,45 @@ export const usePantryStore = create<PantryState>((set, get) => ({
     set({ error: null });
   },
 
-  fetchItems: async () => {
-    set({ status: "loading", error: null });
+  fetchItems: async (params) => {
+    const previous = get();
+    const nextQuery = mergeQuery(previous.query, params);
+    const keepListVisible =
+      previous.status !== "error" &&
+      (previous.items.length > 0 ||
+        previous.totalCount > 0 ||
+        previous.inventoryTotal > 0);
+
+    set({
+      status: keepListVisible ? "idle" : "loading",
+      error: null,
+      query: nextQuery,
+    });
 
     try {
       const supabase = createClient();
-      const userId = await getAuthenticatedUserId(supabase);
-      const items = await listPantryItems(supabase, userId);
-      set({ items, status: "idle", error: null });
+      const userId = await resolveUserId(supabase, get, set);
+      const result = await listPantryItems(
+        supabase,
+        userId,
+        toApiQuery(nextQuery),
+      );
+
+      set({
+        items: result.items,
+        totalCount: result.totalCount,
+        inventoryTotal: result.inventoryTotal,
+        page: result.page,
+        pageSize: result.pageSize,
+        totalPages: result.totalPages,
+        query: {
+          ...nextQuery,
+          page: result.page,
+          pageSize: result.pageSize,
+        },
+        status: "idle",
+        error: null,
+      });
     } catch (error) {
       set({
         status: "error",
@@ -129,8 +251,8 @@ export const usePantryStore = create<PantryState>((set, get) => ({
 
     try {
       const supabase = createClient();
-      const userId = await getAuthenticatedUserId(supabase);
-      const created = await insertPantryItem(supabase, userId, {
+      const userId = await resolveUserId(supabase, get, set);
+      await insertPantryItem(supabase, userId, {
         name: trimmedName,
         quantity: normalizeQuantity(input.quantity),
         unit: normalizeUnit(input.unit),
@@ -138,12 +260,28 @@ export const usePantryStore = create<PantryState>((set, get) => ({
         expiryDate: normalizeExpiryDate(input.expiryDate),
       });
 
-      set((state) => ({
-        items: [created, ...state.items],
+      const result = await listPantryItems(
+        supabase,
+        userId,
+        toApiQuery(get().query),
+      );
+
+      set({
+        items: result.items,
+        totalCount: result.totalCount,
+        inventoryTotal: result.inventoryTotal,
+        page: result.page,
+        pageSize: result.pageSize,
+        totalPages: result.totalPages,
+        query: {
+          ...get().query,
+          page: result.page,
+          pageSize: result.pageSize,
+        },
         isMutating: false,
         error: null,
         status: "idle",
-      }));
+      });
 
       return true;
     } catch (error) {
@@ -156,21 +294,50 @@ export const usePantryStore = create<PantryState>((set, get) => ({
   },
 
   removeItem: async (id) => {
-    const previousItems = get().items;
+    const previous = {
+      items: get().items,
+      totalCount: get().totalCount,
+      inventoryTotal: get().inventoryTotal,
+      page: get().page,
+      pageSize: get().pageSize,
+      totalPages: get().totalPages,
+    };
+
     set({
-      items: previousItems.filter((item) => item.id !== id),
+      items: previous.items.filter((item) => item.id !== id),
       isMutating: true,
       error: null,
     });
 
     try {
       const supabase = createClient();
+      const userId = await resolveUserId(supabase, get, set);
       await deletePantryItem(supabase, id);
-      set({ isMutating: false, error: null });
+      const result = await listPantryItems(
+        supabase,
+        userId,
+        toApiQuery(get().query),
+      );
+
+      set({
+        items: result.items,
+        totalCount: result.totalCount,
+        inventoryTotal: result.inventoryTotal,
+        page: result.page,
+        pageSize: result.pageSize,
+        totalPages: result.totalPages,
+        query: {
+          ...get().query,
+          page: result.page,
+          pageSize: result.pageSize,
+        },
+        isMutating: false,
+        error: null,
+      });
       return true;
     } catch (error) {
       set({
-        items: previousItems,
+        ...previous,
         isMutating: false,
         error: getErrorMessage(error, "Unable to remove pantry item."),
       });
@@ -218,12 +385,29 @@ export const usePantryStore = create<PantryState>((set, get) => ({
 
     try {
       const supabase = createClient();
-      const updated = await updatePantryItemApi(supabase, id, nextFields);
-      set((state) => ({
-        items: state.items.map((item) => (item.id === id ? updated : item)),
+      const userId = await resolveUserId(supabase, get, set);
+      await updatePantryItemApi(supabase, id, nextFields);
+      const result = await listPantryItems(
+        supabase,
+        userId,
+        toApiQuery(get().query),
+      );
+
+      set({
+        items: result.items,
+        totalCount: result.totalCount,
+        inventoryTotal: result.inventoryTotal,
+        page: result.page,
+        pageSize: result.pageSize,
+        totalPages: result.totalPages,
+        query: {
+          ...get().query,
+          page: result.page,
+          pageSize: result.pageSize,
+        },
         isMutating: false,
         error: null,
-      }));
+      });
       return true;
     } catch (error) {
       set({
@@ -270,22 +454,42 @@ export const usePantryStore = create<PantryState>((set, get) => ({
   },
 
   clearItems: async () => {
-    const previousItems = get().items;
-    if (previousItems.length === 0) {
+    const previous = {
+      items: get().items,
+      totalCount: get().totalCount,
+      inventoryTotal: get().inventoryTotal,
+      page: get().page,
+      pageSize: get().pageSize,
+      totalPages: get().totalPages,
+    };
+
+    if (previous.inventoryTotal === 0) {
       return true;
     }
 
-    set({ items: [], isMutating: true, error: null });
+    set({
+      items: [],
+      totalCount: 0,
+      inventoryTotal: 0,
+      page: 1,
+      totalPages: 0,
+      isMutating: true,
+      error: null,
+    });
 
     try {
       const supabase = createClient();
-      const userId = await getAuthenticatedUserId(supabase);
+      const userId = await resolveUserId(supabase, get, set);
       await deleteAllPantryItems(supabase, userId);
-      set({ isMutating: false, error: null });
+      set({
+        isMutating: false,
+        error: null,
+        query: { ...get().query, page: 1 },
+      });
       return true;
     } catch (error) {
       set({
-        items: previousItems,
+        ...previous,
         isMutating: false,
         error: getErrorMessage(error, "Unable to clear pantry items."),
       });
