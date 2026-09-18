@@ -2,6 +2,7 @@ import type { PantryItemRow } from "./database.types";
 import {
   deleteAllPantryItems,
   deletePantryItem,
+  escapeIlikePattern,
   getAuthenticatedUserId,
   getErrorMessage,
   insertPantryItem,
@@ -14,6 +15,7 @@ import {
 type QueryResult = {
   data: unknown;
   error: { message: string } | null;
+  count?: number | null;
 };
 
 function createThenableBuilder(result: QueryResult) {
@@ -23,7 +25,9 @@ function createThenableBuilder(result: QueryResult) {
     update: jest.Mock;
     delete: jest.Mock;
     eq: jest.Mock;
+    ilike: jest.Mock;
     order: jest.Mock;
+    range: jest.Mock;
     single: jest.Mock;
     then: (
       onFulfilled?: (value: QueryResult) => unknown,
@@ -35,7 +39,9 @@ function createThenableBuilder(result: QueryResult) {
     update: jest.fn(),
     delete: jest.fn(),
     eq: jest.fn(),
+    ilike: jest.fn(),
     order: jest.fn(),
+    range: jest.fn(),
     single: jest.fn(),
     then: (onFulfilled, onRejected) =>
       Promise.resolve(result).then(onFulfilled, onRejected),
@@ -46,7 +52,9 @@ function createThenableBuilder(result: QueryResult) {
   builder.update.mockReturnValue(builder);
   builder.delete.mockReturnValue(builder);
   builder.eq.mockReturnValue(builder);
+  builder.ilike.mockReturnValue(builder);
   builder.order.mockReturnValue(builder);
+  builder.range.mockReturnValue(builder);
   builder.single.mockReturnValue(builder);
 
   return builder;
@@ -83,7 +91,11 @@ describe("pantryApi", () => {
     );
   });
 
-  it("listPantryItems maps rows for the user", async () => {
+  it("escapeIlikePattern escapes wildcard characters", () => {
+    expect(escapeIlikePattern("100%_off\\")).toBe("100\\%\\_off\\\\");
+  });
+
+  it("listPantryItems maps rows and applies query options", async () => {
     const row: PantryItemRow = {
       id: "item-1",
       user_id: "user-1",
@@ -95,27 +107,107 @@ describe("pantryApi", () => {
       created_at: "2026-01-01T00:00:00.000Z",
     };
 
-    const builder = createThenableBuilder({ data: [row], error: null });
+    const inventoryBuilder = createThenableBuilder({
+      data: null,
+      error: null,
+      count: 5,
+    });
+    const filteredBuilder = createThenableBuilder({
+      data: [row],
+      error: null,
+      count: 1,
+    });
+
     const supabase = {
-      from: jest.fn(() => builder),
+      from: jest
+        .fn()
+        .mockReturnValueOnce(inventoryBuilder)
+        .mockReturnValueOnce(filteredBuilder),
     };
 
-    const items = await listPantryItems(supabase as never, "user-1");
+    const result = await listPantryItems(supabase as never, "user-1", {
+      search: "ri",
+      category: "pantry",
+      sortBy: "quantity-desc",
+      page: 1,
+      pageSize: 6,
+    });
 
     expect(supabase.from).toHaveBeenCalledWith("pantry_items");
-    expect(builder.eq).toHaveBeenCalledWith("user_id", "user-1");
-    expect(items).toEqual([
-      {
-        id: "item-1",
-        userId: "user-1",
-        name: "Rice",
-        quantity: 2,
-        unit: "kg",
-        category: "pantry",
-        expiryDate: "",
-        createdAt: "2026-01-01T00:00:00.000Z",
-      },
-    ]);
+    expect(filteredBuilder.eq).toHaveBeenCalledWith("user_id", "user-1");
+    expect(filteredBuilder.eq).toHaveBeenCalledWith("category", "pantry");
+    expect(filteredBuilder.ilike).toHaveBeenCalledWith("name", "%ri%");
+    expect(filteredBuilder.order).toHaveBeenCalledWith("quantity", {
+      ascending: false,
+    });
+    expect(filteredBuilder.range).toHaveBeenCalledWith(0, 5);
+    expect(result).toEqual({
+      items: [
+        {
+          id: "item-1",
+          userId: "user-1",
+          name: "Rice",
+          quantity: 2,
+          unit: "kg",
+          category: "pantry",
+          expiryDate: "",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      totalCount: 1,
+      inventoryTotal: 5,
+      page: 1,
+      pageSize: 6,
+      totalPages: 1,
+    });
+  });
+
+  it("listPantryItems clamps an out-of-range page and re-fetches", async () => {
+    const row: PantryItemRow = {
+      id: "item-7",
+      user_id: "user-1",
+      name: "Item 07",
+      quantity: 7,
+      unit: "units",
+      category: "pantry",
+      expiry_date: null,
+      created_at: "2026-01-01T00:00:00.000Z",
+    };
+
+    const inventoryBuilder = createThenableBuilder({
+      data: null,
+      error: null,
+      count: 7,
+    });
+    const emptyPageBuilder = createThenableBuilder({
+      data: [],
+      error: null,
+      count: 7,
+    });
+    const lastPageBuilder = createThenableBuilder({
+      data: [row],
+      error: null,
+    });
+
+    const supabase = {
+      from: jest
+        .fn()
+        .mockReturnValueOnce(inventoryBuilder)
+        .mockReturnValueOnce(emptyPageBuilder)
+        .mockReturnValueOnce(lastPageBuilder),
+    };
+
+    const result = await listPantryItems(supabase as never, "user-1", {
+      page: 99,
+      pageSize: 6,
+      sortBy: "name-asc",
+    });
+
+    expect(emptyPageBuilder.range).toHaveBeenCalledWith(588, 593);
+    expect(lastPageBuilder.range).toHaveBeenCalledWith(6, 11);
+    expect(result.page).toBe(2);
+    expect(result.totalPages).toBe(2);
+    expect(result.items[0]?.name).toBe("Item 07");
   });
 
   it("insertPantryItem returns the created item", async () => {
@@ -237,12 +329,20 @@ describe("pantryApi", () => {
   });
 
   it("throws PantryApiError when list fails", async () => {
-    const builder = createThenableBuilder({
+    const inventoryBuilder = createThenableBuilder({
+      data: null,
+      error: null,
+      count: 0,
+    });
+    const filteredBuilder = createThenableBuilder({
       data: null,
       error: { message: "RLS blocked" },
     });
     const supabase = {
-      from: jest.fn(() => builder),
+      from: jest
+        .fn()
+        .mockReturnValueOnce(inventoryBuilder)
+        .mockReturnValueOnce(filteredBuilder),
     };
 
     await expect(listPantryItems(supabase as never, "user-1")).rejects.toThrow(
