@@ -12,9 +12,16 @@ import {
   filterPantryItems,
   type CategoryFilter,
 } from "@/lib/filterPantryItems";
+import {
+  isPantrySortOption,
+  PANTRY_SORT_OPTIONS,
+  sortPantryItems,
+  type PantrySortOption,
+} from "@/lib/sortPantryItems";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useTranslation } from "@/i18n/useTranslation";
 import type { MessageKey } from "@/i18n/messages";
+import { useInventoryFilterStore } from "@/store/useInventoryFilterStore";
 import {
   type PantryCategory,
   type PantryItem,
@@ -23,12 +30,21 @@ import {
 
 const SEARCH_DEBOUNCE_MS = 300;
 
+const SELECT_CLASS_NAME =
+  "h-10 w-full min-w-[11rem] rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 sm:w-auto";
+
 const CATEGORY_FILTERS: readonly CategoryFilter[] = [
   "all",
   "pantry",
   "fridge",
   "freezer",
 ];
+
+const SORT_MESSAGE_KEYS: Record<PantrySortOption, MessageKey> = {
+  "name-asc": "sort.nameAsc",
+  "expiry-asc": "sort.expiryAsc",
+  "quantity-desc": "sort.quantityDesc",
+};
 
 const CATEGORY_MESSAGE_KEYS: Record<PantryCategory, MessageKey> = {
   pantry: "category.pantry",
@@ -117,7 +133,13 @@ export function PantryDemo() {
   const [isRemoving, setIsRemoving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS);
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+
+  const categoryFilter = useInventoryFilterStore((state) => state.category);
+  const sortBy = useInventoryFilterStore((state) => state.sortBy);
+  const setCategoryFilter = useInventoryFilterStore(
+    (state) => state.setCategory,
+  );
+  const setSortBy = useInventoryFilterStore((state) => state.setSortBy);
 
   const items = usePantryStore((state) => state.items);
   const status = usePantryStore((state) => state.status);
@@ -133,14 +155,13 @@ export function PantryDemo() {
     void fetchItems();
   }, [fetchItems]);
 
-  const filteredItems = useMemo(
-    () =>
-      filterPantryItems(items, {
-        query: debouncedSearchQuery,
-        category: categoryFilter,
-      }),
-    [items, debouncedSearchQuery, categoryFilter],
-  );
+  const filteredItems = useMemo(() => {
+    const filtered = filterPantryItems(items, {
+      query: debouncedSearchQuery,
+      category: categoryFilter,
+    });
+    return sortPantryItems(filtered, sortBy);
+  }, [items, debouncedSearchQuery, categoryFilter, sortBy]);
 
   const hasActiveFilters =
     debouncedSearchQuery.trim().length > 0 || categoryFilter !== "all";
@@ -277,12 +298,9 @@ export function PantryDemo() {
           </div>
         ) : (
           <>
-            <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex w-full max-w-md flex-col gap-2">
-                <label
-                  htmlFor="pantry-search"
-                  className="text-sm font-medium text-zinc-700"
-                >
+            <div className="flex flex-col gap-3">
+              <div className="w-full">
+                <label htmlFor="pantry-search" className="sr-only">
                   {t("search.label")}
                 </label>
                 <Input
@@ -295,26 +313,54 @@ export function PantryDemo() {
                 />
               </div>
 
-              <div
-                className="flex flex-wrap gap-2"
-                role="group"
-                aria-label={t("filter.groupAria")}
-              >
-                {CATEGORY_FILTERS.map((filter) => {
-                  const isSelected = categoryFilter === filter;
-                  return (
-                    <Button
-                      key={filter}
-                      type="button"
-                      size="sm"
-                      variant={isSelected ? "primary" : "outline"}
-                      aria-pressed={isSelected}
-                      onClick={() => setCategoryFilter(filter)}
-                    >
-                      {t(CATEGORY_FILTER_MESSAGE_KEYS[filter])}
-                    </Button>
-                  );
-                })}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                <div
+                  className="flex flex-wrap gap-2"
+                  role="group"
+                  aria-label={t("filter.groupAria")}
+                >
+                  {CATEGORY_FILTERS.map((filter) => {
+                    const isSelected = categoryFilter === filter;
+                    return (
+                      <Button
+                        key={filter}
+                        type="button"
+                        size="md"
+                        variant={isSelected ? "primary" : "outline"}
+                        aria-pressed={isSelected}
+                        onClick={() => setCategoryFilter(filter)}
+                      >
+                        {t(CATEGORY_FILTER_MESSAGE_KEYS[filter])}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center gap-2 sm:shrink-0">
+                  <label
+                    htmlFor="pantry-sort"
+                    className="whitespace-nowrap text-sm text-zinc-500"
+                  >
+                    {t("sort.label")}
+                  </label>
+                  <select
+                    id="pantry-sort"
+                    className={SELECT_CLASS_NAME}
+                    value={sortBy}
+                    onChange={(event) => {
+                      const nextSort = event.target.value;
+                      if (isPantrySortOption(nextSort)) {
+                        setSortBy(nextSort);
+                      }
+                    }}
+                  >
+                    {PANTRY_SORT_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {t(SORT_MESSAGE_KEYS[option])}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
