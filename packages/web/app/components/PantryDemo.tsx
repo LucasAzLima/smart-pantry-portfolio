@@ -3,6 +3,7 @@
 import { Button, Card, Input } from "@smart-pantry/ui";
 import { useEffect, useMemo, useState } from "react";
 import { AddItemModal } from "./AddItemModal";
+import { InventoryPagination } from "./InventoryPagination";
 import { RemoveItemModal } from "./RemoveItemModal";
 import {
   calculateExpiryStatus,
@@ -12,6 +13,10 @@ import {
   filterPantryItems,
   type CategoryFilter,
 } from "@/lib/filterPantryItems";
+import {
+  DEFAULT_INVENTORY_PAGE_SIZE,
+  paginateItems,
+} from "@/lib/paginateItems";
 import {
   isPantrySortOption,
   PANTRY_SORT_OPTIONS,
@@ -132,6 +137,7 @@ export function PantryDemo() {
   } | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
   const debouncedSearchQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS);
 
   const categoryFilter = useInventoryFilterStore((state) => state.category);
@@ -163,8 +169,30 @@ export function PantryDemo() {
     return sortPantryItems(filtered, sortBy);
   }, [items, debouncedSearchQuery, categoryFilter, sortBy]);
 
+  const pagination = useMemo(
+    () => paginateItems(filteredItems, page, DEFAULT_INVENTORY_PAGE_SIZE),
+    [filteredItems, page],
+  );
+
+  const pagedItems = pagination.items;
+
   const hasActiveFilters =
     debouncedSearchQuery.trim().length > 0 || categoryFilter !== "all";
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setPage(1);
+  };
+
+  const handleCategoryChange = (filter: CategoryFilter) => {
+    setCategoryFilter(filter);
+    setPage(1);
+  };
+
+  const handleSortChange = (nextSort: PantrySortOption) => {
+    setSortBy(nextSort);
+    setPage(1);
+  };
 
   const itemCountLabel = (() => {
     if (items.length === 0) {
@@ -307,7 +335,7 @@ export function PantryDemo() {
                   id="pantry-search"
                   type="search"
                   value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onChange={(event) => handleSearchChange(event.target.value)}
                   placeholder={t("search.placeholder")}
                   autoComplete="off"
                 />
@@ -328,7 +356,7 @@ export function PantryDemo() {
                         size="md"
                         variant={isSelected ? "primary" : "outline"}
                         aria-pressed={isSelected}
-                        onClick={() => setCategoryFilter(filter)}
+                        onClick={() => handleCategoryChange(filter)}
                       >
                         {t(CATEGORY_FILTER_MESSAGE_KEYS[filter])}
                       </Button>
@@ -350,7 +378,7 @@ export function PantryDemo() {
                     onChange={(event) => {
                       const nextSort = event.target.value;
                       if (isPantrySortOption(nextSort)) {
-                        setSortBy(nextSort);
+                        handleSortChange(nextSort);
                       }
                     }}
                   >
@@ -367,137 +395,152 @@ export function PantryDemo() {
             {filteredItems.length === 0 ? (
               <p className="text-sm text-zinc-500">{t("inventory.noMatches")}</p>
             ) : (
-              <ul
-                className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
-                aria-label={t("inventory.listAria")}
-              >
-                {filteredItems.map((item) => (
-                  <li key={item.id} className="min-w-0">
-                    <Card
-                      padding="none"
-                      className="relative flex h-full flex-col overflow-hidden border-zinc-200/90 bg-white shadow-sm"
-                    >
-                      <div
-                        className={`absolute inset-y-0 left-0 w-1.5 ${CATEGORY_ACCENT_STYLES[item.category]}`}
-                        aria-hidden="true"
-                      />
-                      <div className="flex h-full flex-col gap-3 bg-white p-5 pl-6">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <h3 className="text-base font-semibold tracking-tight text-zinc-900">
-                            {item.name}
-                          </h3>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CATEGORY_BADGE_STYLES[item.category]}`}
-                            >
-                              {t(CATEGORY_MESSAGE_KEYS[item.category])}
-                            </span>
-                            <ExpiryStatusBadge expiryDate={item.expiryDate} />
+              <div className="flex flex-col gap-4">
+                <ul
+                  className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+                  aria-label={t("inventory.listAria")}
+                >
+                  {pagedItems.map((item) => (
+                    <li key={item.id} className="min-w-0">
+                      <Card
+                        padding="none"
+                        className="relative flex h-full flex-col overflow-hidden border-zinc-200/90 bg-white shadow-sm"
+                      >
+                        <div
+                          className={`absolute inset-y-0 left-0 w-1.5 ${CATEGORY_ACCENT_STYLES[item.category]}`}
+                          aria-hidden="true"
+                        />
+                        <div className="flex h-full flex-col gap-3 bg-white p-5 pl-6">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <h3 className="text-base font-semibold tracking-tight text-zinc-900">
+                              {item.name}
+                            </h3>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CATEGORY_BADGE_STYLES[item.category]}`}
+                              >
+                                {t(CATEGORY_MESSAGE_KEYS[item.category])}
+                              </span>
+                              <ExpiryStatusBadge expiryDate={item.expiryDate} />
+                            </div>
                           </div>
-                        </div>
-                        <dl className="grid gap-1.5 text-sm text-zinc-600">
-                          <div className="flex gap-1">
-                            <dt className="font-medium text-zinc-500">
-                              {t("item.quantity")}
-                            </dt>
-                            <dd className="text-zinc-800">
-                              {item.quantity} {item.unit}
-                            </dd>
-                          </div>
-                          <div className="flex gap-1">
-                            <dt className="font-medium text-zinc-500">
-                              {t("item.expires")}
-                            </dt>
-                            <dd className="text-zinc-800">
-                              {formatExpiryDate(
-                                item.expiryDate,
-                                locale,
-                                t("item.noExpiry"),
-                              )}
-                            </dd>
-                          </div>
-                        </dl>
-                        <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
-                          <div
-                            className="inline-flex items-center gap-1"
-                            role="group"
-                            aria-label={t("item.adjustQuantityAria", {
-                              name: item.name,
-                            })}
-                          >
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              aria-label={t("item.decreaseAria", {
+                          <dl className="grid gap-1.5 text-sm text-zinc-600">
+                            <div className="flex gap-1">
+                              <dt className="font-medium text-zinc-500">
+                                {t("item.quantity")}
+                              </dt>
+                              <dd className="text-zinc-800">
+                                {item.quantity} {item.unit}
+                              </dd>
+                            </div>
+                            <div className="flex gap-1">
+                              <dt className="font-medium text-zinc-500">
+                                {t("item.expires")}
+                              </dt>
+                              <dd className="text-zinc-800">
+                                {formatExpiryDate(
+                                  item.expiryDate,
+                                  locale,
+                                  t("item.noExpiry"),
+                                )}
+                              </dd>
+                            </div>
+                          </dl>
+                          <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
+                            <div
+                              className="inline-flex items-center gap-1"
+                              role="group"
+                              aria-label={t("item.adjustQuantityAria", {
                                 name: item.name,
                               })}
-                              disabled={item.quantity <= 1 || isMutating}
-                              onClick={() => {
-                                void updateItemQuantity(
-                                  item.id,
-                                  item.quantity - 1,
-                                );
-                              }}
                             >
-                              −
-                            </Button>
-                            <span className="min-w-10 text-center text-sm font-medium text-zinc-900">
-                              {item.quantity}
-                            </span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                aria-label={t("item.decreaseAria", {
+                                  name: item.name,
+                                })}
+                                disabled={item.quantity <= 1 || isMutating}
+                                onClick={() => {
+                                  void updateItemQuantity(
+                                    item.id,
+                                    item.quantity - 1,
+                                  );
+                                }}
+                              >
+                                −
+                              </Button>
+                              <span className="min-w-10 text-center text-sm font-medium text-zinc-900">
+                                {item.quantity}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                aria-label={t("item.increaseAria", {
+                                  name: item.name,
+                                })}
+                                disabled={isMutating}
+                                onClick={() => {
+                                  void updateItemQuantity(
+                                    item.id,
+                                    item.quantity + 1,
+                                  );
+                                }}
+                              >
+                                +
+                              </Button>
+                            </div>
                             <Button
                               type="button"
                               variant="outline"
                               size="sm"
-                              aria-label={t("item.increaseAria", {
+                              aria-label={t("item.editAria", {
                                 name: item.name,
                               })}
                               disabled={isMutating}
-                              onClick={() => {
-                                void updateItemQuantity(
-                                  item.id,
-                                  item.quantity + 1,
-                                );
-                              }}
+                              onClick={() => setItemPendingEdit(item)}
                             >
-                              +
+                              {t("item.edit")}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label={t("item.removeAria", {
+                                name: item.name,
+                              })}
+                              disabled={isMutating}
+                              onClick={() =>
+                                setItemPendingRemoval({
+                                  id: item.id,
+                                  name: item.name,
+                                })
+                              }
+                            >
+                              {t("item.remove")}
                             </Button>
                           </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            aria-label={t("item.editAria", {
-                              name: item.name,
-                            })}
-                            disabled={isMutating}
-                            onClick={() => setItemPendingEdit(item)}
-                          >
-                            {t("item.edit")}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            aria-label={t("item.removeAria", {
-                              name: item.name,
-                            })}
-                            disabled={isMutating}
-                            onClick={() =>
-                              setItemPendingRemoval({
-                                id: item.id,
-                                name: item.name,
-                              })
-                            }
-                          >
-                            {t("item.remove")}
-                          </Button>
                         </div>
-                      </div>
-                    </Card>
-                  </li>
-                ))}
-              </ul>
+                      </Card>
+                    </li>
+                  ))}
+                </ul>
+
+                <InventoryPagination
+                  page={pagination.page}
+                  totalPages={pagination.totalPages}
+                  hasPreviousPage={pagination.hasPreviousPage}
+                  hasNextPage={pagination.hasNextPage}
+                  onPrevious={() => {
+                    setPage(Math.max(1, pagination.page - 1));
+                  }}
+                  onNext={() => {
+                    setPage(pagination.page + 1);
+                  }}
+                />
+              </div>
             )}
           </>
         )}

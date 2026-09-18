@@ -222,4 +222,35 @@ describe("PantryDemo", () => {
     );
     expect(names()).toEqual(["Apples", "Bread", "Zucchini"]);
   });
+
+  it("paginates the inventory list when there are more than one page of items", async () => {
+    const user = userEvent.setup();
+    mockedListPantryItems.mockResolvedValue(
+      Array.from({ length: 7 }, (_, index) =>
+        makeItem({
+          id: `item-${index + 1}`,
+          name: `Item ${String(index + 1).padStart(2, "0")}`,
+          quantity: index + 1,
+        }),
+      ),
+    );
+
+    render(<PantryDemo />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Item 01")).toBeInTheDocument();
+    });
+
+    const list = screen.getByRole("list", { name: "Pantry items" });
+    expect(within(list).getAllByRole("heading", { level: 3 })).toHaveLength(6);
+    expect(screen.queryByText("Item 07")).not.toBeInTheDocument();
+    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+    expect(screen.getByText("Item 07")).toBeInTheDocument();
+    expect(screen.queryByText("Item 01")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+  });
 });
