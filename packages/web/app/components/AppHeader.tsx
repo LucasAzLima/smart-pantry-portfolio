@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { LanguageSwitcher } from "./LanguageSwitcher";
 import { SignOutButton } from "./SignOutButton";
 import { useTranslation } from "@/i18n/useTranslation";
 
@@ -56,7 +55,6 @@ export function AppHeader({ userEmail }: AppHeaderProps) {
           <div className="flex items-center gap-2 sm:hidden">
             {userEmail ? <SignOutButton /> : null}
           </div>
-          <LanguageSwitcher />
         </div>
       </div>
     </header>
