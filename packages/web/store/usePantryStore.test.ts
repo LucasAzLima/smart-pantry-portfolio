@@ -2,26 +2,41 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { PantryItem } from "@/lib/supabase/pantryItem";
 import { DEFAULT_INVENTORY_PAGE_SIZE } from "@/lib/paginateItems";
 import { DEFAULT_PANTRY_SORT } from "@/lib/sortPantryItems";
-import { usePantryStore } from "./usePantryStore";
+import {
+  resetGuestMigrationLockForTests,
+  usePantryStore,
+} from "./usePantryStore";
 
 const mockCreateClient = jest.fn();
-const mockGetAuthenticatedUserId = jest.fn();
+const mockGetOptionalAuthenticatedUserId = jest.fn();
 const mockListPantryItems = jest.fn();
 const mockInsertPantryItem = jest.fn();
+const mockInsertPantryItems = jest.fn();
 const mockUpdatePantryItem = jest.fn();
 const mockUpdatePantryItemQuantity = jest.fn();
 const mockDeletePantryItem = jest.fn();
 const mockDeleteAllPantryItems = jest.fn();
+const mockLoadGuestPantryItems = jest.fn();
+const mockSaveGuestPantryItems = jest.fn();
+const mockClearGuestPantryItems = jest.fn();
 
 jest.mock("@/lib/supabase/client", () => ({
   createClient: () => mockCreateClient(),
 }));
 
+jest.mock("@/lib/guestPantryStorage", () => ({
+  loadGuestPantryItems: (...args: unknown[]) => mockLoadGuestPantryItems(...args),
+  saveGuestPantryItems: (...args: unknown[]) => mockSaveGuestPantryItems(...args),
+  clearGuestPantryItems: (...args: unknown[]) =>
+    mockClearGuestPantryItems(...args),
+}));
+
 jest.mock("@/lib/supabase/pantryApi", () => ({
-  getAuthenticatedUserId: (...args: unknown[]) =>
-    mockGetAuthenticatedUserId(...args),
+  getOptionalAuthenticatedUserId: (...args: unknown[]) =>
+    mockGetOptionalAuthenticatedUserId(...args),
   listPantryItems: (...args: unknown[]) => mockListPantryItems(...args),
   insertPantryItem: (...args: unknown[]) => mockInsertPantryItem(...args),
+  insertPantryItems: (...args: unknown[]) => mockInsertPantryItems(...args),
   updatePantryItem: (...args: unknown[]) => mockUpdatePantryItem(...args),
   updatePantryItemQuantity: (...args: unknown[]) =>
     mockUpdatePantryItemQuantity(...args),
@@ -80,13 +95,18 @@ function makeListResult(
 describe("usePantryStore", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    resetGuestMigrationLockForTests();
     mockCreateClient.mockReturnValue(supabaseStub);
-    mockGetAuthenticatedUserId.mockResolvedValue("user-1");
+    mockGetOptionalAuthenticatedUserId.mockResolvedValue("user-1");
+    mockLoadGuestPantryItems.mockReturnValue([]);
+    mockClearGuestPantryItems.mockImplementation(() => undefined);
+    mockSaveGuestPantryItems.mockImplementation(() => undefined);
 
     act(() => {
       usePantryStore.setState({
         items: [],
         userId: null,
+        isGuest: true,
         totalCount: 0,
         inventoryTotal: 0,
         page: 1,
@@ -102,6 +122,7 @@ describe("usePantryStore", () => {
         status: "idle",
         error: null,
         isMutating: false,
+        isMigratingGuest: false,
       });
     });
   });
@@ -121,7 +142,9 @@ describe("usePantryStore", () => {
       });
     });
 
-    expect(mockGetAuthenticatedUserId).toHaveBeenCalledWith(supabaseStub);
+    expect(mockGetOptionalAuthenticatedUserId).toHaveBeenCalledWith(
+      supabaseStub,
+    );
     expect(mockListPantryItems).toHaveBeenCalledWith(supabaseStub, "user-1", {
       search: "egg",
       category: "fridge",
@@ -131,9 +154,195 @@ describe("usePantryStore", () => {
     });
     expect(result.current.items).toEqual(items);
     expect(result.current.userId).toBe("user-1");
+    expect(result.current.isGuest).toBe(false);
     expect(result.current.totalCount).toBe(1);
     expect(result.current.status).toBe("idle");
     expect(result.current.error).toBeNull();
+  });
+
+  it("loads guest items from local storage when there is no session", async () => {
+    mockGetOptionalAuthenticatedUserId.mockResolvedValue(null);
+    const guestItems = [
+      makeItem({ id: "guest-1", userId: null, name: "Rice" }),
+      makeItem({ id: "guest-2", userId: null, name: "Beans", category: "fridge" }),
+    ];
+    mockLoadGuestPantryItems.mockReturnValue(guestItems);
+
+    const { result } = renderHook(() => usePantryStore());
+
+    await act(async () => {
+      await result.current.fetchItems({ search: "rice", page: 1 });
+    });
+
+    expect(mockListPantryItems).not.toHaveBeenCalled();
+    expect(result.current.isGuest).toBe(true);
+    expect(result.current.userId).toBeNull();
+    expect(result.current.items).toEqual([guestItems[0]]);
+    expect(result.current.totalCount).toBe(1);
+    expect(result.current.inventoryTotal).toBe(2);
+  });
+
+  it("adds guest items to local storage when unauthenticated", async () => {
+    mockGetOptionalAuthenticatedUserId.mockResolvedValue(null);
+    mockLoadGuestPantryItems.mockReturnValue([]);
+
+    const { result } = renderHook(() => usePantryStore());
+
+    let succeeded = false;
+    await act(async () => {
+      succeeded = await result.current.addItem({ name: "  Milk  " });
+    });
+
+    expect(succeeded).toBe(true);
+    expect(mockInsertPantryItem).not.toHaveBeenCalled();
+    expect(mockSaveGuestPantryItems).toHaveBeenCalled();
+    const saved = mockSaveGuestPantryItems.mock.calls[0][0] as PantryItem[];
+    expect(saved).toHaveLength(1);
+    expect(saved[0].name).toBe("Milk");
+    expect(saved[0].userId).toBeNull();
+    expect(result.current.isGuest).toBe(true);
+    expect(result.current.inventoryTotal).toBe(1);
+  });
+
+  it("migrates guest items during authenticated fetchItems", async () => {
+    const guestItems = [
+      makeItem({
+        id: "guest-1",
+        userId: null,
+        name: "Rice",
+        quantity: 2,
+        unit: "kg",
+        category: "pantry",
+        expiryDate: "2026-12-01",
+      }),
+    ];
+    let guestStore = [...guestItems];
+    mockLoadGuestPantryItems.mockImplementation(() => [...guestStore]);
+    mockClearGuestPantryItems.mockImplementation(() => {
+      guestStore = [];
+    });
+    mockSaveGuestPantryItems.mockImplementation((items: PantryItem[]) => {
+      guestStore = [...items];
+    });
+    mockInsertPantryItems.mockResolvedValue([
+      makeItem({ id: "server-1", name: "Rice" }),
+    ]);
+    mockListPantryItems.mockResolvedValue(
+      makeListResult([makeItem({ id: "server-1", name: "Rice" })]),
+    );
+
+    const { result } = renderHook(() => usePantryStore());
+
+    await act(async () => {
+      await result.current.fetchItems();
+    });
+
+    expect(mockInsertPantryItems).toHaveBeenCalledTimes(1);
+    expect(mockInsertPantryItems).toHaveBeenCalledWith(supabaseStub, "user-1", [
+      {
+        name: "Rice",
+        quantity: 2,
+        unit: "kg",
+        category: "pantry",
+        expiryDate: "2026-12-01",
+      },
+    ]);
+    expect(mockClearGuestPantryItems).toHaveBeenCalled();
+    expect(result.current.isGuest).toBe(false);
+    expect(result.current.items[0].name).toBe("Rice");
+  });
+
+  it("does not double-insert when two fetchItems race after sign-up", async () => {
+    const guestItems = [
+      makeItem({
+        id: "guest-1",
+        userId: null,
+        name: "Rice",
+        quantity: 1,
+        unit: "kg",
+        category: "pantry",
+        expiryDate: "",
+      }),
+    ];
+    let guestStore = [...guestItems];
+    mockLoadGuestPantryItems.mockImplementation(() => [...guestStore]);
+    mockClearGuestPantryItems.mockImplementation(() => {
+      guestStore = [];
+    });
+    mockSaveGuestPantryItems.mockImplementation((items: PantryItem[]) => {
+      guestStore = [...items];
+    });
+    mockInsertPantryItems.mockImplementation(async () => {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 30);
+      });
+      return [makeItem({ id: "server-1", name: "Rice" })];
+    });
+    mockListPantryItems.mockResolvedValue(
+      makeListResult([makeItem({ id: "server-1", name: "Rice" })]),
+    );
+
+    const { result } = renderHook(() => usePantryStore());
+
+    await act(async () => {
+      await Promise.all([
+        result.current.fetchItems(),
+        result.current.fetchItems(),
+      ]);
+    });
+
+    expect(mockInsertPantryItems).toHaveBeenCalledTimes(1);
+    expect(guestStore).toEqual([]);
+  });
+
+  it("migrates guest items to Supabase and clears local storage", async () => {
+    const guestItems = [
+      makeItem({
+        id: "guest-1",
+        userId: null,
+        name: "Rice",
+        quantity: 2,
+        unit: "kg",
+        category: "pantry",
+        expiryDate: "2026-12-01",
+      }),
+    ];
+    let guestStore = [...guestItems];
+    mockLoadGuestPantryItems.mockImplementation(() => [...guestStore]);
+    mockClearGuestPantryItems.mockImplementation(() => {
+      guestStore = [];
+    });
+    mockSaveGuestPantryItems.mockImplementation((items: PantryItem[]) => {
+      guestStore = [...items];
+    });
+    mockInsertPantryItems.mockResolvedValue([
+      makeItem({ id: "server-1", name: "Rice" }),
+    ]);
+    mockListPantryItems.mockResolvedValue(
+      makeListResult([makeItem({ id: "server-1", name: "Rice" })]),
+    );
+
+    const { result } = renderHook(() => usePantryStore());
+
+    let succeeded = false;
+    await act(async () => {
+      succeeded = await result.current.migrateGuestItems();
+    });
+
+    expect(succeeded).toBe(true);
+    expect(mockInsertPantryItems).toHaveBeenCalledTimes(1);
+    expect(mockInsertPantryItems).toHaveBeenCalledWith(supabaseStub, "user-1", [
+      {
+        name: "Rice",
+        quantity: 2,
+        unit: "kg",
+        category: "pantry",
+        expiryDate: "2026-12-01",
+      },
+    ]);
+    expect(mockClearGuestPantryItems).toHaveBeenCalled();
+    expect(result.current.isGuest).toBe(false);
+    expect(result.current.items[0].name).toBe("Rice");
   });
 
   it("reuses the cached user id on subsequent fetches", async () => {
@@ -149,9 +358,44 @@ describe("usePantryStore", () => {
       await result.current.fetchItems({ category: "fridge", page: 1 });
     });
 
-    expect(mockGetAuthenticatedUserId).toHaveBeenCalledTimes(1);
+    expect(mockGetOptionalAuthenticatedUserId).toHaveBeenCalledTimes(1);
     expect(mockListPantryItems).toHaveBeenCalledTimes(2);
     expect(result.current.userId).toBe("user-1");
+  });
+
+  it("enterGuestSession clears the cached user so guest CRUD uses local storage", async () => {
+    mockGetOptionalAuthenticatedUserId.mockResolvedValue(null);
+    mockLoadGuestPantryItems.mockReturnValue([]);
+
+    act(() => {
+      usePantryStore.setState({
+        userId: "user-1",
+        isGuest: false,
+        items: [makeItem()],
+        inventoryTotal: 1,
+        totalCount: 1,
+      });
+    });
+
+    const { result } = renderHook(() => usePantryStore());
+
+    act(() => {
+      result.current.enterGuestSession();
+    });
+
+    expect(result.current.userId).toBeNull();
+    expect(result.current.isGuest).toBe(true);
+    expect(result.current.items).toEqual([]);
+
+    let succeeded = false;
+    await act(async () => {
+      succeeded = await result.current.addItem({ name: "Bread" });
+    });
+
+    expect(succeeded).toBe(true);
+    expect(mockInsertPantryItem).not.toHaveBeenCalled();
+    expect(mockSaveGuestPantryItems).toHaveBeenCalled();
+    expect(mockGetOptionalAuthenticatedUserId).toHaveBeenCalled();
   });
 
   it("stores a load error when fetch fails", async () => {
