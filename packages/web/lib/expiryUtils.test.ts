@@ -1,7 +1,23 @@
 import {
   calculateExpiryStatus,
   DEFAULT_EXPIRY_WARNING_DAYS,
+  maskExpiryDateInput,
 } from "./expiryUtils";
+
+describe("maskExpiryDateInput", () => {
+  it("keeps typed digits and inserts YYYY-MM-DD separators", () => {
+    expect(maskExpiryDateInput("2")).toBe("2");
+    expect(maskExpiryDateInput("2026")).toBe("2026");
+    expect(maskExpiryDateInput("202609")).toBe("2026-09");
+    expect(maskExpiryDateInput("20260925")).toBe("2026-09-25");
+  });
+
+  it("ignores non-digits and extra characters", () => {
+    expect(maskExpiryDateInput("2026-09-25")).toBe("2026-09-25");
+    expect(maskExpiryDateInput("2026/09/25")).toBe("2026-09-25");
+    expect(maskExpiryDateInput("2026092511")).toBe("2026-09-25");
+  });
+});
 
 describe("calculateExpiryStatus", () => {
   const now = new Date(2026, 8, 17); // 2026-09-17 local
