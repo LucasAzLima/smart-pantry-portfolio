@@ -43,8 +43,10 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   const pathname = request.nextUrl.pathname;
   const isLoginRoute = pathname.startsWith("/login");
   const isAuthRoute = pathname.startsWith("/auth");
+  // Home is public so visitors can explore in guest mode before signing up.
+  const isPublicRoute = pathname === "/" || isLoginRoute || isAuthRoute;
 
-  if (!user && !isLoginRoute && !isAuthRoute) {
+  if (!user && !isPublicRoute) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.search = "";

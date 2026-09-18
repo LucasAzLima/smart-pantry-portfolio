@@ -5,7 +5,9 @@ import {
   escapeIlikePattern,
   getAuthenticatedUserId,
   getErrorMessage,
+  getOptionalAuthenticatedUserId,
   insertPantryItem,
+  insertPantryItems,
   listPantryItems,
   PantryApiError,
   updatePantryItem,
@@ -89,6 +91,21 @@ describe("pantryApi", () => {
     await expect(getAuthenticatedUserId(supabase as never)).rejects.toThrow(
       PantryApiError,
     );
+  });
+
+  it("getOptionalAuthenticatedUserId returns null when there is no session", async () => {
+    const supabase = {
+      auth: {
+        getUser: jest.fn().mockResolvedValue({
+          data: { user: null },
+          error: null,
+        }),
+      },
+    };
+
+    await expect(
+      getOptionalAuthenticatedUserId(supabase as never),
+    ).resolves.toBeNull();
   });
 
   it("escapeIlikePattern escapes wildcard characters", () => {
@@ -245,6 +262,75 @@ describe("pantryApi", () => {
     });
     expect(item.name).toBe("Milk");
     expect(item.userId).toBe("user-1");
+  });
+
+  it("insertPantryItems bulk inserts guest items", async () => {
+    const rows: PantryItemRow[] = [
+      {
+        id: "item-a",
+        user_id: "user-1",
+        name: "Rice",
+        quantity: 1,
+        unit: "kg",
+        category: "pantry",
+        expiry_date: null,
+        created_at: "2026-09-17T00:00:00.000Z",
+      },
+      {
+        id: "item-b",
+        user_id: "user-1",
+        name: "Milk",
+        quantity: 2,
+        unit: "l",
+        category: "fridge",
+        expiry_date: "2026-10-01",
+        created_at: "2026-09-17T00:00:00.000Z",
+      },
+    ];
+
+    const builder = createThenableBuilder({ data: rows, error: null });
+    const supabase = {
+      from: jest.fn(() => builder),
+    };
+
+    const items = await insertPantryItems(supabase as never, "user-1", [
+      {
+        name: "Rice",
+        quantity: 1,
+        unit: "kg",
+        category: "pantry",
+        expiryDate: "",
+      },
+      {
+        name: "Milk",
+        quantity: 2,
+        unit: "l",
+        category: "fridge",
+        expiryDate: "2026-10-01",
+      },
+    ]);
+
+    expect(builder.insert).toHaveBeenCalledWith([
+      {
+        user_id: "user-1",
+        name: "Rice",
+        quantity: 1,
+        unit: "kg",
+        category: "pantry",
+        expiry_date: null,
+      },
+      {
+        user_id: "user-1",
+        name: "Milk",
+        quantity: 2,
+        unit: "l",
+        category: "fridge",
+        expiry_date: "2026-10-01",
+      },
+    ]);
+    expect(items).toHaveLength(2);
+    expect(items[0].name).toBe("Rice");
+    expect(items[1].name).toBe("Milk");
   });
 
   it("updatePantryItem updates fields by id and returns the mapped item", async () => {

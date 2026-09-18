@@ -79,23 +79,31 @@ function resolveSort(sortBy: PantrySortOption): {
   }
 }
 
-export async function getAuthenticatedUserId(
+export async function getOptionalAuthenticatedUserId(
   supabase: PantrySupabaseClient,
-): Promise<string> {
+): Promise<string | null> {
   const {
     data: { user },
     error,
   } = await supabase.auth.getUser();
 
-  if (error) {
-    throw new PantryApiError(toErrorMessage(error, "Unable to verify your session."));
-  }
-
-  if (!user) {
-    throw new PantryApiError("You must be signed in to manage pantry items.");
+  if (error || !user) {
+    return null;
   }
 
   return user.id;
+}
+
+export async function getAuthenticatedUserId(
+  supabase: PantrySupabaseClient,
+): Promise<string> {
+  const userId = await getOptionalAuthenticatedUserId(supabase);
+
+  if (!userId) {
+    throw new PantryApiError("You must be signed in to manage pantry items.");
+  }
+
+  return userId;
 }
 
 export async function listPantryItems(
@@ -225,12 +233,11 @@ export async function listPantryItems(
   };
 }
 
-export async function insertPantryItem(
-  supabase: PantrySupabaseClient,
+function toInsertPayload(
   userId: string,
   input: CreatePantryItemInput,
-): Promise<PantryItem> {
-  const payload: PantryItemInsert = {
+): PantryItemInsert {
+  return {
     user_id: userId,
     name: input.name,
     quantity: input.quantity,
@@ -238,6 +245,14 @@ export async function insertPantryItem(
     category: input.category,
     expiry_date: input.expiryDate.trim() === "" ? null : input.expiryDate,
   };
+}
+
+export async function insertPantryItem(
+  supabase: PantrySupabaseClient,
+  userId: string,
+  input: CreatePantryItemInput,
+): Promise<PantryItem> {
+  const payload = toInsertPayload(userId, input);
 
   const { data, error } = await supabase
     .from("pantry_items")
@@ -250,6 +265,31 @@ export async function insertPantryItem(
   }
 
   return pantryItemFromRow(data as PantryItemRow);
+}
+
+export async function insertPantryItems(
+  supabase: PantrySupabaseClient,
+  userId: string,
+  inputs: readonly CreatePantryItemInput[],
+): Promise<PantryItem[]> {
+  if (inputs.length === 0) {
+    return [];
+  }
+
+  const payload = inputs.map((input) => toInsertPayload(userId, input));
+
+  const { data, error } = await supabase
+    .from("pantry_items")
+    .insert(payload)
+    .select("*");
+
+  if (error || !data) {
+    throw new PantryApiError(
+      toErrorMessage(error, "Unable to migrate guest pantry items."),
+    );
+  }
+
+  return (data as PantryItemRow[]).map(pantryItemFromRow);
 }
 
 export async function updatePantryItem(
