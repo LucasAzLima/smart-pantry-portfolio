@@ -6,9 +6,11 @@ import { SignOutModal } from "./SignOutModal";
 import { signOut } from "@/app/actions/auth";
 import { isNextRedirectError } from "@/lib/auth/redirect";
 import { useTranslation } from "@/i18n/useTranslation";
+import { usePantryStore } from "@/store/usePantryStore";
 
 export function SignOutButton() {
   const { t } = useTranslation();
+  const enterGuestSession = usePantryStore((state) => state.enterGuestSession);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -23,6 +25,7 @@ export function SignOutButton() {
   const handleConfirm = () => {
     startTransition(async () => {
       try {
+        enterGuestSession();
         await signOut();
       } catch (caught) {
         if (isNextRedirectError(caught)) {

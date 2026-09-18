@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PantryDemo } from "./PantryDemo";
 import {
-  getAuthenticatedUserId,
+  getOptionalAuthenticatedUserId,
   listPantryItems,
   updatePantryItem,
 } from "@/lib/supabase/pantryApi";
@@ -19,9 +19,10 @@ jest.mock("@/lib/supabase/client", () => ({
 }));
 
 jest.mock("@/lib/supabase/pantryApi", () => ({
-  getAuthenticatedUserId: jest.fn(),
+  getOptionalAuthenticatedUserId: jest.fn(),
   listPantryItems: jest.fn(),
   insertPantryItem: jest.fn(),
+  insertPantryItems: jest.fn(),
   updatePantryItem: jest.fn(),
   updatePantryItemQuantity: jest.fn(),
   deletePantryItem: jest.fn(),
@@ -32,7 +33,9 @@ jest.mock("@/lib/supabase/pantryApi", () => ({
       : fallback,
 }));
 
-const mockedGetAuthenticatedUserId = jest.mocked(getAuthenticatedUserId);
+const mockedGetOptionalAuthenticatedUserId = jest.mocked(
+  getOptionalAuthenticatedUserId,
+);
 const mockedListPantryItems = jest.mocked(listPantryItems);
 const mockedUpdatePantryItem = jest.mocked(updatePantryItem);
 
@@ -72,12 +75,14 @@ describe("PantryDemo", () => {
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
-    mockedGetAuthenticatedUserId.mockResolvedValue("user-1");
+    mockedGetOptionalAuthenticatedUserId.mockResolvedValue("user-1");
     mockedListPantryItems.mockResolvedValue(makeListResult([]));
 
     act(() => {
       usePantryStore.setState({
         items: [],
+        userId: null,
+        isGuest: false,
         totalCount: 0,
         inventoryTotal: 0,
         page: 1,
@@ -93,6 +98,7 @@ describe("PantryDemo", () => {
         status: "idle",
         error: null,
         isMutating: false,
+        isMigratingGuest: false,
       });
       useInventoryFilterStore.setState({
         category: "all",

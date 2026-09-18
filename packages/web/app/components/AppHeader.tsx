@@ -7,9 +7,10 @@ import { useTranslation } from "@/i18n/useTranslation";
 
 export interface AppHeaderProps {
   userEmail: string | null;
+  isGuest?: boolean;
 }
 
-export function AppHeader({ userEmail }: AppHeaderProps) {
+export function AppHeader({ userEmail, isGuest = false }: AppHeaderProps) {
   const { t } = useTranslation();
 
   return (
@@ -47,12 +48,22 @@ export function AppHeader({ userEmail }: AppHeaderProps) {
               <SignOutButton />
             </div>
           ) : (
-            <Link
-              href="/login"
-              className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
-            >
-              {t("auth.signIn")}
-            </Link>
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              {isGuest ? (
+                <span
+                  className="truncate text-sm text-zinc-600"
+                  aria-label={t("guest.badge")}
+                >
+                  {t("guest.badge")}
+                </span>
+              ) : null}
+              <Link
+                href="/login"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+              >
+                {t("auth.signIn")}
+              </Link>
+            </div>
           )}
           <div className="flex items-center gap-2 sm:hidden">
             {userEmail ? <SignOutButton /> : null}

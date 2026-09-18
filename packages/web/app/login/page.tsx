@@ -11,7 +11,7 @@ export default function LoginPage() {
       <header className="border-b border-zinc-200/80 bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link
-            href="/login"
+            href="/"
             className="truncate text-lg font-semibold tracking-tight text-zinc-900"
           >
             Smart Pantry

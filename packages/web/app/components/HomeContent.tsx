@@ -2,6 +2,7 @@
 
 import { AppHeader } from "./AppHeader";
 import { FloatingLanguageSelector } from "./FloatingLanguageSelector";
+import { GuestModeGate } from "./GuestModeGate";
 import { PantryDemo } from "./PantryDemo";
 import { useTranslation } from "@/i18n/useTranslation";
 
@@ -11,10 +12,11 @@ export interface HomeContentProps {
 
 export function HomeContent({ userEmail }: HomeContentProps) {
   const { t } = useTranslation();
+  const isAuthenticated = userEmail !== null;
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-[#f4f6f8] font-sans text-zinc-900">
-      <AppHeader userEmail={userEmail} />
+      <AppHeader userEmail={userEmail} isGuest={!isAuthenticated} />
       <main
         id="dashboard"
         className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10"
@@ -27,6 +29,7 @@ export function HomeContent({ userEmail }: HomeContentProps) {
             {t("app.subtitle")}
           </p>
         </div>
+        <GuestModeGate isAuthenticated={isAuthenticated} />
         <PantryDemo />
       </main>
       <FloatingLanguageSelector />
