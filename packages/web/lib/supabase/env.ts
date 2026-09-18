@@ -26,3 +26,19 @@ export function getSupabaseEnv(): { url: string; anonKey: string } {
 
   return { url, anonKey };
 }
+
+/**
+ * Service-role key for privileged server-only operations (e.g. account deletion).
+ * Never expose this value to the browser.
+ */
+export function getSupabaseServiceRoleKey(): string {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!serviceRoleKey) {
+    throw new Error(
+      "Missing SUPABASE_SERVICE_ROLE_KEY. Copy packages/web/.env.local.example to .env.local and set the service role key from Supabase → Project Settings → API.",
+    );
+  }
+
+  return serviceRoleKey;
+}

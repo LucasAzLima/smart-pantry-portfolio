@@ -2,15 +2,20 @@
 
 import Link from "next/link";
 import { LanguageSelector } from "./FloatingLanguageSelector";
-import { SignOutButton } from "./SignOutButton";
+import { UserProfileMenu } from "./UserProfileMenu";
 import { useTranslation } from "@/i18n/useTranslation";
 
 export interface AppHeaderProps {
   userEmail: string | null;
+  userName?: string | null;
   isGuest?: boolean;
 }
 
-export function AppHeader({ userEmail, isGuest = false }: AppHeaderProps) {
+export function AppHeader({
+  userEmail,
+  userName = null,
+  isGuest = false,
+}: AppHeaderProps) {
   const { t } = useTranslation();
 
   return (
@@ -38,15 +43,7 @@ export function AppHeader({ userEmail, isGuest = false }: AppHeaderProps) {
         <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
           <LanguageSelector className="sm:hidden" />
           {userEmail ? (
-            <div className="hidden min-w-0 items-center gap-3 sm:flex">
-              <span
-                className="truncate text-sm text-zinc-600"
-                title={userEmail}
-              >
-                {userEmail}
-              </span>
-              <SignOutButton />
-            </div>
+            <UserProfileMenu userName={userName} userEmail={userEmail} />
           ) : (
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               {isGuest ? (
@@ -65,9 +62,6 @@ export function AppHeader({ userEmail, isGuest = false }: AppHeaderProps) {
               </Link>
             </div>
           )}
-          <div className="flex items-center gap-2 sm:hidden">
-            {userEmail ? <SignOutButton /> : null}
-          </div>
         </div>
       </div>
     </header>
