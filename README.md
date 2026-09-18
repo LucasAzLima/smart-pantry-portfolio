@@ -74,6 +74,7 @@ Open [http://localhost:3000](http://localhost:3000). Unauthenticated users are r
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | `packages/web/.env.local` and Vercel | Project origin only, e.g. `https://xxxx.supabase.co` (no `/rest/v1`) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `packages/web/.env.local` and Vercel | Public anon key from Supabase API settings |
+| `SUPABASE_SERVICE_ROLE_KEY` | `packages/web/.env.local` and Vercel (server only) | Service role key used for account deletion. Never ship to the browser. |
 
 See [`packages/web/.env.local.example`](packages/web/.env.local.example).
 
@@ -84,6 +85,7 @@ See [`packages/web/.env.local.example`](packages/web/.env.local.example).
 3. Add Environment Variables for **Production** (and Preview if desired):
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` (server-only; required for account deletion)
 4. In the Supabase Dashboard → Authentication → URL configuration, add your Vercel URL(s) to **Site URL** / **Redirect URLs**.
 5. Deploy. Confirm sign-in and a full pantry CRUD cycle against the live project.
 
