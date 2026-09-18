@@ -1,12 +1,13 @@
 # Smart Pantry
 
-Portfolio web app for tracking a household pantry: items, quantities, storage categories, and expiry dates. Inventory is stored in **Supabase** (`pantry_items`) and scoped to the signed-in user. Language preference still lives in the browser via Zustand + `localStorage`.
+Portfolio web app for tracking a household pantry: items, quantities, storage categories, and expiry dates. Inventory is stored in **Supabase** (`pantry_items`) and scoped to the signed-in user. Search, category filter, sort, and pagination run as **server-side queries** against Postgres. Language preference still lives in the browser via Zustand + `localStorage`.
 
 ## What it does
 
 - Sign up / sign in with email and password (Supabase Auth)
-- Add items with name, quantity, unit (`units`, `kg`, `g`, `l`, `ml`), category (Pantry / Fridge / Freezer), and optional expiry date
-- Search by name and filter by category
+- Add and edit items with name, quantity, unit (`units`, `kg`, `g`, `l`, `ml`), category (Pantry / Fridge / Freezer), and optional expiry date
+- Search by name, filter by category, and sort (name, expiry, quantity) via Supabase
+- Paginate the inventory grid (six items per page)
 - Adjust quantity in place, remove an item (with confirmation), or clear the whole list
 - Show expiry status: **Expired**, **Expiring soon** (within 7 days), or **Fresh**
 - Persist inventory in Supabase (RLS by `user_id`); persist language preference in `localStorage`
@@ -45,7 +46,7 @@ Server Components stay at the route boundary (`app/page.tsx`). Interactive UI is
 - **Next.js 16** App Router (`web`)
 - **React 19**
 - **Tailwind CSS 4**
-- **Zustand 5** (`web` — pantry is in-memory + Supabase; locale uses persist)
+- **Zustand 5** (`web` — pantry list state + query params synced with Supabase; locale uses persist)
 - **Supabase** (Auth + Postgres + RLS)
 - **Jest** + React Testing Library
 - **Storybook 10** (Vite) for `@smart-pantry/ui`

@@ -2,12 +2,12 @@
 
 Next.js App Router package for Smart Pantry. This is the product app: auth, dashboard, client state, and i18n.
 
-Inventory is loaded and mutated through **Supabase** (`pantry_items`, RLS by authenticated `user_id`). Locale preference is persisted in `localStorage` via Zustand.
+Inventory is loaded and mutated through **Supabase** (`pantry_items`, RLS by authenticated `user_id`). List views use server-side search, category filter, sort, and range pagination (`listPantryItems`). Locale preference is persisted in `localStorage` via Zustand.
 
 ## Layout
 
 - `app/` — routes (RSC by default) and client islands under `app/components/`
-- `store/` — Zustand stores (`usePantryStore` ↔ Supabase, `useLocaleStore`)
+- `store/` — Zustand stores (`usePantryStore` ↔ Supabase queries/mutations, `useLocaleStore`, inventory filters)
 - `i18n/` — `en-US` / `pt-BR` dictionaries and `useTranslation`
 - `lib/` — domain helpers, Supabase clients (`lib/supabase/`), and auth helpers
 - `proxy.ts` — session refresh and auth redirects (Next.js 16 proxy)
