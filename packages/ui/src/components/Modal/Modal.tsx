@@ -137,19 +137,19 @@ export function Modal({
 
   const overlay = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-zinc-950/50 p-4"
       onClick={handleBackdropClick}
     >
       <div
         ref={dialogRef}
         {...panelProps}
         className={joinClasses(
-          "flex w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-lg",
+          "my-auto flex w-full max-w-lg max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-lg",
           "dark:border-zinc-700 dark:bg-zinc-950",
           className,
         )}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4 dark:border-zinc-700">
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4 dark:border-zinc-700">
           <h2
             id={titleId}
             className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50"
@@ -166,10 +166,12 @@ export function Modal({
           </button>
         </header>
 
-        <div className="px-5 py-4 text-sm text-zinc-700 dark:text-zinc-300">{children}</div>
+        <div className="min-h-0 min-w-0 overflow-y-auto overflow-x-hidden px-5 py-4 text-sm text-zinc-700 dark:text-zinc-300">
+          {children}
+        </div>
 
         {footer ? (
-          <footer className="flex items-center justify-end gap-3 border-t border-zinc-200 px-5 py-4 dark:border-zinc-700">
+          <footer className="flex shrink-0 items-center justify-end gap-3 border-t border-zinc-200 px-5 py-4 dark:border-zinc-700">
             {footer}
           </footer>
         ) : null}
