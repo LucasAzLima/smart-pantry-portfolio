@@ -26,6 +26,7 @@ cp .env.local.example .env.local
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Project origin only (`https://xxxx.supabase.co`) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Anon/public key from Supabase → Project Settings → API |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes (server) | Service role key for account deletion. Never expose to the browser. |
 
 Apply migrations from [`../../supabase/migrations`](../../supabase/migrations) to your Supabase project before first use.
 
@@ -34,7 +35,7 @@ Apply migrations from [`../../supabase/migrations`](../../supabase/migrations) t
 When deploying this package on Vercel from the monorepo:
 
 1. Set Root Directory to `packages/web` (or install/build from the repo root with `-w web`).
-2. Configure the same two `NEXT_PUBLIC_*` variables in the Vercel project settings for Production and Preview.
+2. Configure the same `NEXT_PUBLIC_*` variables plus `SUPABASE_SERVICE_ROLE_KEY` in the Vercel project settings for Production and Preview.
 3. Add the deployment URL to Supabase Auth redirect allowlists.
 
 See the [repository README](../../README.md#deploying-to-vercel) for the recommended install/build commands.
