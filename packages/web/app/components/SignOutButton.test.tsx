@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { SignOutButton } from "./SignOutButton";
 import { signOut } from "@/app/actions/auth";
 import { useLocaleStore } from "@/store/useLocaleStore";
+import { usePantryStore } from "@/store/usePantryStore";
 
 jest.mock("@/app/actions/auth", () => ({
   signOut: jest.fn(),
@@ -18,6 +19,10 @@ describe("SignOutButton", () => {
     act(() => {
       useLocaleStore.setState({ locale: "en-US" });
       useLocaleStore.persist.clearStorage();
+      usePantryStore.setState({
+        userId: "user-1",
+        isGuest: false,
+      });
     });
   });
 
@@ -39,6 +44,8 @@ describe("SignOutButton", () => {
     await waitFor(() => {
       expect(mockedSignOut).toHaveBeenCalledTimes(1);
     });
+    expect(usePantryStore.getState().userId).toBeNull();
+    expect(usePantryStore.getState().isGuest).toBe(true);
   });
 
   it("does not sign out when confirmation is cancelled", async () => {

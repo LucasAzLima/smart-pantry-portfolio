@@ -1,6 +1,7 @@
 "use client";
 
 import { Button, Card, Input } from "@smart-pantry/ui";
+import Link from "next/link";
 import { useState, useTransition, type FormEvent } from "react";
 import { signIn, signUp, type AuthActionResult } from "@/app/actions/auth";
 import { isNextRedirectError } from "@/lib/auth/redirect";
@@ -167,6 +168,15 @@ export function LoginForm() {
         <Button type="submit" className="w-full" isLoading={isPending}>
           {mode === "signIn" ? t("auth.signInSubmit") : t("auth.signUpSubmit")}
         </Button>
+
+        <p className="text-center text-sm text-zinc-600">
+          <Link
+            href="/"
+            className="font-medium text-zinc-900 underline-offset-2 hover:underline"
+          >
+            {t("guest.continueExploring")}
+          </Link>
+        </p>
       </form>
     </Card>
   );
