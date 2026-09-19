@@ -4,6 +4,8 @@ Next.js App Router package for Smart Pantry. This is the product app: auth, dash
 
 Home (`/`) is public. Without a session, inventory is stored in **guest `localStorage`**. After sign-in, inventory is loaded and mutated through **Supabase** (`pantry_items`, RLS by authenticated `user_id`); leftover guest items are migrated once. Signed-in list views use server-side search, category filter, sort, and range pagination (`listPantryItems`); guests filter, sort, and paginate in the browser. Locale preference is persisted in `localStorage` via Zustand.
 
+Design tradeoffs are in the [repository README](../../README.md#engineering-decisions).
+
 ## Layout
 
 - `app/` — routes (RSC by default) and client islands under `app/components/`

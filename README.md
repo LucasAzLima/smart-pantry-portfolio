@@ -1,10 +1,15 @@
 # Smart Pantry
 
+[![CI](https://github.com/LucasAzLima/smart-pantry-portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasAzLima/smart-pantry-portfolio/actions/workflows/ci.yml)
+
+This is a portfolio demo — a focused pantry app that shows product, architecture, and security choices in one place.
+
 Portfolio web app for tracking a household pantry: items, quantities, storage categories, and expiry dates. Visitors can explore in **guest mode** (inventory in `localStorage`). After sign-in, inventory lives in **Supabase** (`pantry_items`, RLS by `user_id`); guest items migrate to the account on first authenticated load. Signed-in search, category filter, sort, and pagination run as **server-side queries** against Postgres; guests apply the same filters in the browser. Language preference lives in the browser via Zustand + `localStorage`.
 
 ## What it does
 
 - Explore the pantry as a **guest** without an account (data stays in this browser)
+- First guest visit seeds a sample pantry in `localStorage` (does not re-seed after Clear all)
 - Sign up / sign in with email, password, and full name (Supabase Auth)
 - Create an account from guest mode to save local items to the signed-in pantry
 - Add and edit items with name, quantity, unit (`units`, `kg`, `g`, `l`, `ml`), category (Pantry / Fridge / Freezer), and optional expiry date (`YYYY-MM-DD`)
@@ -57,6 +62,15 @@ Server Components stay at the route boundary (`app/page.tsx`). Interactive UI is
 - **Storybook 10** (Vite) for `@smart-pantry/ui`
 
 Requires **Node.js 20+** and npm (workspaces).
+
+## Engineering decisions
+
+- **Guest vs account:** `/` is public. Guests keep a versioned inventory in `localStorage`; signed-in users use Supabase `pantry_items` with RLS (`auth.uid() = user_id`). Guest rows migrate once on first authenticated load (in-flight lock; restore storage if the insert fails).
+- **Account deletion:** the Admin API runs with the service-role key on the server only; pantry rows cascade via foreign key. The anon key never deletes users.
+- **List queries:** authenticated search, filter, sort, and pagination run in Postgres; guests reuse the same helpers in the browser so the UI stays consistent without a backend.
+- **Expiry input:** typed `YYYY-MM-DD` instead of `input type="date"` so iOS and desktop share the same field chrome.
+- **Rendering:** Server Components at the route (`app/page.tsx`); interactivity in client islands; shared primitives in `@smart-pantry/ui` with Storybook.
+- **i18n:** `en-US` / `pt-BR` via Zustand + `localStorage` for UI strings only; item names are user or demo data.
 
 ## Getting started
 
