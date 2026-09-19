@@ -108,5 +108,13 @@
   "auth.error.nameTooShort": "Name must be at least 2 characters.",
   "auth.error.notAuthenticated": "You must be signed in to delete your account.",
   "auth.error.deleteUnavailable": "Account deletion is not configured. Set SUPABASE_SERVICE_ROLE_KEY in packages/web/.env.local and restart the dev server.",
-  "auth.error.unexpected": "Something went wrong. Please try again."
+  "auth.error.unexpected": "Something went wrong. Please try again.",
+  "error.heading": "Something went wrong",
+  "error.message": "An unexpected error occurred. You can try again or return home.",
+  "error.tryAgain": "Try again",
+  "error.goHome": "Go home",
+  "notFound.heading": "Page not found",
+  "notFound.message": "That page does not exist or may have moved.",
+  "notFound.goHome": "Go home",
+  "notFound.goLogin": "Sign in"
 }
