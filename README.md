@@ -126,6 +126,8 @@ Run these from the repository root:
 | `npm run test` | Run tests in all workspaces |
 | `npm run typecheck` | Type-check all packages |
 
+A Husky **pre-commit** hook runs lint-staged on staged `packages/web` JS/TS files. Pull requests and pushes to `main` still run the full GitHub Actions suite (`typecheck`, `test`, `lint`).
+
 ## Conventions
 
 - Shared UI lives in `@smart-pantry/ui`; `web` consumes it. Do not duplicate primitives in the app.
