@@ -13,9 +13,14 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "storybook": "npm run storybook -w @smart-pantry/ui",
-    "build-storybook": "npm run build-storybook -w @smart-pantry/ui"
+    "build-storybook": "npm run build-storybook -w @smart-pantry/ui",
+    "prepare": "husky"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0"
+  }
 }
