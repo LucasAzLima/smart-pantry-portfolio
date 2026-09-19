@@ -70,6 +70,7 @@ Requires **Node.js 20+** and npm (workspaces).
 - **List queries:** authenticated search, filter, sort, and pagination run in Postgres; guests reuse the same helpers in the browser so the UI stays consistent without a backend.
 - **Expiry input:** typed `YYYY-MM-DD` instead of `input type="date"` so iOS and desktop share the same field chrome.
 - **Rendering:** Server Components at the route (`app/page.tsx`); interactivity in client islands; shared primitives in `@smart-pantry/ui` with Storybook.
+- **Errors and headers:** App Router `error.tsx` / `not-found.tsx` / `global-error.tsx` and route `loading.tsx` for recovery and wait states; responses set baseline security headers plus an enforcing CSP that allows Next inline bootstrap and Supabase (`connect-src`), without HSTS (left to the host).
 - **i18n:** `en-US` / `pt-BR` via Zustand + `localStorage` for UI strings only; item names are user or demo data.
 
 ## Getting started

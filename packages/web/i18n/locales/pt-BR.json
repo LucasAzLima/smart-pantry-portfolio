@@ -108,5 +108,13 @@
   "auth.error.nameTooShort": "O nome deve ter pelo menos 2 caracteres.",
   "auth.error.notAuthenticated": "Você precisa estar conectado para excluir a conta.",
   "auth.error.deleteUnavailable": "A exclusão de conta não está configurada. Defina SUPABASE_SERVICE_ROLE_KEY em packages/web/.env.local e reinicie o servidor de desenvolvimento.",
-  "auth.error.unexpected": "Algo deu errado. Tente novamente."
+  "auth.error.unexpected": "Algo deu errado. Tente novamente.",
+  "error.heading": "Algo deu errado",
+  "error.message": "Ocorreu um erro inesperado. Você pode tentar de novo ou voltar para o início.",
+  "error.tryAgain": "Tentar de novo",
+  "error.goHome": "Ir para o início",
+  "notFound.heading": "Página não encontrada",
+  "notFound.message": "Essa página não existe ou pode ter sido movida.",
+  "notFound.goHome": "Ir para o início",
+  "notFound.goLogin": "Entrar"
 }
