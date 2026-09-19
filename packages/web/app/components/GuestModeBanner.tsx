@@ -2,10 +2,15 @@
 
 import Link from "next/link";
 import { Button } from "@smart-pantry/ui";
+import { guestStorageHasDemoItems } from "@/lib/guestDemoPantry";
 import { useTranslation } from "@/i18n/useTranslation";
+import { usePantryStore } from "@/store/usePantryStore";
 
 export function GuestModeBanner() {
   const { t } = useTranslation();
+  // Re-check when inventory changes (pagination only keeps one page in `items`).
+  const inventoryTotal = usePantryStore((state) => state.inventoryTotal);
+  const showSampleHint = inventoryTotal > 0 && guestStorageHasDemoItems();
 
   return (
     <aside
@@ -18,6 +23,9 @@ export function GuestModeBanner() {
           {t("guest.badge")}
         </p>
         <p className="text-sm text-sky-900/90">{t("guest.bannerMessage")}</p>
+        {showSampleHint ? (
+          <p className="text-sm text-sky-900/90">{t("guest.samplePantryHint")}</p>
+        ) : null}
       </div>
       <div className="shrink-0">
         <Link href="/login?mode=signUp">

@@ -80,6 +80,7 @@
   "expiry.fresh": "Fresco",
   "guest.badge": "Modo convidado",
   "guest.bannerMessage": "Você está explorando localmente. Crie uma conta para salvar sua despensa em todos os dispositivos.",
+  "guest.samplePantryHint": "A lista abaixo começa com itens de exemplo desta demo.",
   "guest.createAccount": "Criar conta para salvar",
   "guest.continueExploring": "Continuar como convidado",
   "auth.signIn": "Entrar",

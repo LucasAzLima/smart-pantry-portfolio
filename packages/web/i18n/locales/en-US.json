@@ -80,6 +80,7 @@
   "expiry.fresh": "Fresh",
   "guest.badge": "Guest mode",
   "guest.bannerMessage": "You are exploring locally. Create an account to save your pantry across devices.",
+  "guest.samplePantryHint": "The list below starts with sample items for this demo.",
   "guest.createAccount": "Create account to save",
   "guest.continueExploring": "Continue as guest",
   "auth.signIn": "Sign in",
