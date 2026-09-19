@@ -12,6 +12,7 @@
     "lint": "npm run lint -w web",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "test:e2e": "playwright test",
     "storybook": "npm run storybook -w @smart-pantry/ui",
     "build-storybook": "npm run build-storybook -w @smart-pantry/ui",
     "prepare": "node .husky/install.mjs"
@@ -20,6 +21,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0"
   }
