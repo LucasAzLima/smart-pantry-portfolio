@@ -1,16 +1,19 @@
 # Smart Pantry
 
-Portfolio web app for tracking a household pantry: items, quantities, storage categories, and expiry dates. Inventory is stored in **Supabase** (`pantry_items`) and scoped to the signed-in user. Search, category filter, sort, and pagination run as **server-side queries** against Postgres. Language preference still lives in the browser via Zustand + `localStorage`.
+Portfolio web app for tracking a household pantry: items, quantities, storage categories, and expiry dates. Visitors can explore in **guest mode** (inventory in `localStorage`). After sign-in, inventory lives in **Supabase** (`pantry_items`, RLS by `user_id`); guest items migrate to the account on first authenticated load. Signed-in search, category filter, sort, and pagination run as **server-side queries** against Postgres; guests apply the same filters in the browser. Language preference lives in the browser via Zustand + `localStorage`.
 
 ## What it does
 
-- Sign up / sign in with email and password (Supabase Auth)
-- Add and edit items with name, quantity, unit (`units`, `kg`, `g`, `l`, `ml`), category (Pantry / Fridge / Freezer), and optional expiry date
-- Search by name, filter by category, and sort (name, expiry, quantity) via Supabase
+- Explore the pantry as a **guest** without an account (data stays in this browser)
+- Sign up / sign in with email, password, and full name (Supabase Auth)
+- Create an account from guest mode to save local items to the signed-in pantry
+- Add and edit items with name, quantity, unit (`units`, `kg`, `g`, `l`, `ml`), category (Pantry / Fridge / Freezer), and optional expiry date (`YYYY-MM-DD`)
+- Search by name, filter by category, and sort (name, expiry, quantity)
 - Paginate the inventory grid (six items per page)
 - Adjust quantity in place, remove an item (with confirmation), or clear the whole list
 - Show expiry status: **Expired**, **Expiring soon** (within 7 days), or **Fresh**
-- Persist inventory in Supabase (RLS by `user_id`); persist language preference in `localStorage`
+- Persist inventory in Supabase when signed in (RLS by `user_id`); persist guest inventory and language preference in `localStorage`
+- Open the account menu to sign out or **delete the account** (pantry rows cascade)
 - Switch UI language between English (`en-US`) and Portuguese (`pt-BR`)
 
 ## Structure
@@ -25,7 +28,7 @@ supabase/
 
 | Package | Path | Description |
 | --- | --- | --- |
-| `web` | `packages/web` | Dashboard, auth, Zustand stores, Supabase clients, i18n |
+| `web` | `packages/web` | Dashboard, auth, guest mode, Zustand stores, Supabase clients, i18n |
 | `@smart-pantry/ui` | `packages/ui` | Accessible primitives: Button, Input, Card, Badge, Modal |
 
 ### Web layout
@@ -33,9 +36,11 @@ supabase/
 ```
 packages/web/
   app/           Routes and client islands (header, dashboard, modals, login)
-  store/         Zustand stores (pantry items via Supabase, locale)
+  app/actions/   Server Actions (sign in/up/out, delete account)
+  store/         Zustand stores (pantry via Supabase or guest storage, locale)
   i18n/          Dictionaries and translation helpers
-  lib/           Pure logic + Supabase clients/mappers
+  lib/           Pure logic, Supabase clients/mappers, guest localStorage
+  proxy.ts       Next.js 16 session refresh; `/` and `/login` are public
 ```
 
 Server Components stay at the route boundary (`app/page.tsx`). Interactive UI is isolated in client components under `app/components/`. Shared visuals come from `@smart-pantry/ui`; app-only screens stay in `web`.
@@ -46,7 +51,7 @@ Server Components stay at the route boundary (`app/page.tsx`). Interactive UI is
 - **Next.js 16** App Router (`web`)
 - **React 19**
 - **Tailwind CSS 4**
-- **Zustand 5** (`web` — pantry list state + query params synced with Supabase; locale uses persist)
+- **Zustand 5** (`web` — pantry list + query params: Supabase when signed in, `localStorage` when guest; locale uses persist)
 - **Supabase** (Auth + Postgres + RLS)
 - **Jest** + React Testing Library
 - **Storybook 10** (Vite) for `@smart-pantry/ui`
@@ -66,7 +71,7 @@ Fill in `packages/web/.env.local` with your Supabase project URL and anon key (D
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Unauthenticated users are redirected to `/login`.
+Open [http://localhost:3000](http://localhost:3000). Home (`/`) is public: guests can use the pantry locally. Sign in or create an account at `/login`.
 
 ### Environment variables
 

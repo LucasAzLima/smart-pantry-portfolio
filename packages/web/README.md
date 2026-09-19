@@ -1,16 +1,17 @@
 # web
 
-Next.js App Router package for Smart Pantry. This is the product app: auth, dashboard, client state, and i18n.
+Next.js App Router package for Smart Pantry. This is the product app: auth, dashboard, guest mode, client state, and i18n.
 
-Inventory is loaded and mutated through **Supabase** (`pantry_items`, RLS by authenticated `user_id`). List views use server-side search, category filter, sort, and range pagination (`listPantryItems`). Locale preference is persisted in `localStorage` via Zustand.
+Home (`/`) is public. Without a session, inventory is stored in **guest `localStorage`**. After sign-in, inventory is loaded and mutated through **Supabase** (`pantry_items`, RLS by authenticated `user_id`); leftover guest items are migrated once. Signed-in list views use server-side search, category filter, sort, and range pagination (`listPantryItems`); guests filter, sort, and paginate in the browser. Locale preference is persisted in `localStorage` via Zustand.
 
 ## Layout
 
 - `app/` — routes (RSC by default) and client islands under `app/components/`
-- `store/` — Zustand stores (`usePantryStore` ↔ Supabase queries/mutations, `useLocaleStore`, inventory filters)
+- `app/actions/` — Server Actions for sign in, sign up, sign out, and account deletion
+- `store/` — Zustand stores (`usePantryStore` ↔ Supabase or guest storage, `useLocaleStore`, inventory filters)
 - `i18n/` — `en-US` / `pt-BR` dictionaries and `useTranslation`
-- `lib/` — domain helpers, Supabase clients (`lib/supabase/`), and auth helpers
-- `proxy.ts` — session refresh and auth redirects (Next.js 16 proxy)
+- `lib/` — domain helpers, Supabase clients (`lib/supabase/`), guest storage, and auth helpers
+- `proxy.ts` — session refresh and auth redirects (Next.js 16 proxy; `/` and `/login` stay public)
 
 Shared UI is imported from [`@smart-pantry/ui`](../ui).
 
