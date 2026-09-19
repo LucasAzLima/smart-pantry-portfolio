@@ -4,6 +4,7 @@ import type { PantryCategory, PantryUnit } from "@/lib/supabase/database.types";
 import type { PantryItem } from "@/lib/supabase/pantryItem";
 import { filterPantryItems } from "@/lib/filterPantryItems";
 import type { CategoryFilter } from "@/lib/filterPantryItems";
+import { loadOrSeedGuestPantryItems } from "@/lib/guestDemoPantry";
 import {
   clearGuestPantryItems,
   loadGuestPantryItems,
@@ -368,7 +369,7 @@ export const usePantryStore = create<PantryState>((set, get) => ({
       const userId = await resolveUserId(supabase, get, set);
 
       if (!userId) {
-        const guestItems = loadGuestPantryItems();
+        const guestItems = loadOrSeedGuestPantryItems();
         setGuestListState(set, guestItems, nextQuery);
         return;
       }

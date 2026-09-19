@@ -17,6 +17,7 @@ const mockUpdatePantryItemQuantity = jest.fn();
 const mockDeletePantryItem = jest.fn();
 const mockDeleteAllPantryItems = jest.fn();
 const mockLoadGuestPantryItems = jest.fn();
+const mockLoadOrSeedGuestPantryItems = jest.fn();
 const mockSaveGuestPantryItems = jest.fn();
 const mockClearGuestPantryItems = jest.fn();
 
@@ -29,6 +30,11 @@ jest.mock("@/lib/guestPantryStorage", () => ({
   saveGuestPantryItems: (...args: unknown[]) => mockSaveGuestPantryItems(...args),
   clearGuestPantryItems: (...args: unknown[]) =>
     mockClearGuestPantryItems(...args),
+}));
+
+jest.mock("@/lib/guestDemoPantry", () => ({
+  loadOrSeedGuestPantryItems: (...args: unknown[]) =>
+    mockLoadOrSeedGuestPantryItems(...args),
 }));
 
 jest.mock("@/lib/supabase/pantryApi", () => ({
@@ -99,6 +105,7 @@ describe("usePantryStore", () => {
     mockCreateClient.mockReturnValue(supabaseStub);
     mockGetOptionalAuthenticatedUserId.mockResolvedValue("user-1");
     mockLoadGuestPantryItems.mockReturnValue([]);
+    mockLoadOrSeedGuestPantryItems.mockReturnValue([]);
     mockClearGuestPantryItems.mockImplementation(() => undefined);
     mockSaveGuestPantryItems.mockImplementation(() => undefined);
 
@@ -166,7 +173,7 @@ describe("usePantryStore", () => {
       makeItem({ id: "guest-1", userId: null, name: "Rice" }),
       makeItem({ id: "guest-2", userId: null, name: "Beans", category: "fridge" }),
     ];
-    mockLoadGuestPantryItems.mockReturnValue(guestItems);
+    mockLoadOrSeedGuestPantryItems.mockReturnValue(guestItems);
 
     const { result } = renderHook(() => usePantryStore());
 
@@ -175,6 +182,7 @@ describe("usePantryStore", () => {
     });
 
     expect(mockListPantryItems).not.toHaveBeenCalled();
+    expect(mockLoadOrSeedGuestPantryItems).toHaveBeenCalled();
     expect(result.current.isGuest).toBe(true);
     expect(result.current.userId).toBeNull();
     expect(result.current.items).toEqual([guestItems[0]]);
