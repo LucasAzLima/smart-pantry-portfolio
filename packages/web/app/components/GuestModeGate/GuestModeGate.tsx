@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { GuestModeBanner } from "./GuestModeBanner";
+import { GuestModeBanner } from "@/app/components/GuestModeBanner";
 import { usePantryStore } from "@/store/usePantryStore";
 
 export interface GuestModeGateProps {

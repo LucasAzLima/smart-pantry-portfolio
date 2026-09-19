@@ -2,16 +2,8 @@
 
 import { Button } from "@smart-pantry/ui";
 import { useEffect } from "react";
+import { LOCALE_OPTIONS } from "./FloatingLanguageSelector.constants";
 import { useTranslation } from "@/i18n/useTranslation";
-import type { Locale } from "@/i18n/messages";
-
-const LOCALE_OPTIONS: ReadonlyArray<{
-  locale: Locale;
-  labelKey: "language.en" | "language.pt";
-}> = [
-  { locale: "en-US", labelKey: "language.en" },
-  { locale: "pt-BR", labelKey: "language.pt" },
-];
 
 function joinClasses(...classes: Array<string | false | undefined>): string {
   return classes.filter(Boolean).join(" ");

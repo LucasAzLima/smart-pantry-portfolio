@@ -40,15 +40,16 @@ supabase/
 
 ```
 packages/web/
-  app/           Routes and client islands (header, dashboard, modals, login)
-  app/actions/   Server Actions (sign in/up/out, delete account)
-  store/         Zustand stores (pantry via Supabase or guest storage, locale)
-  i18n/          Dictionaries and translation helpers
-  lib/           Pure logic, Supabase clients/mappers, guest localStorage
-  proxy.ts       Next.js 16 session refresh; `/` and `/login` are public
+  app/                    Routes (RSC) + error/loading boundaries
+  app/components/<Name>/  Client islands (Name.tsx, tests, constants, index.ts)
+  app/actions/            Server Actions (sign in/up/out, delete account)
+  store/                  Zustand stores (pantry via Supabase or guest storage, locale)
+  i18n/                   Dictionaries and translation helpers
+  lib/                    Pure logic, Supabase clients/mappers, guest localStorage
+  proxy.ts                Next.js 16 session refresh; `/` and `/login` are public
 ```
 
-Server Components stay at the route boundary (`app/page.tsx`). Interactive UI is isolated in client components under `app/components/`. Shared visuals come from `@smart-pantry/ui`; app-only screens stay in `web`.
+Server Components stay at the route boundary (`app/page.tsx`). Interactive UI is isolated in client component folders under `app/components/<Name>/`. Shared visuals come from `@smart-pantry/ui`; app-only screens stay in `web`.
 
 ## Stack
 
@@ -148,6 +149,7 @@ A Husky **pre-commit** hook runs lint-staged on staged `packages/web` JS/TS file
 - Shared UI lives in `@smart-pantry/ui`; `web` consumes it. Do not duplicate primitives in the app.
 - New UI components ship with colocated Storybook stories and tests (see `.cursor/skills/ui-component-with-storybook`).
 - Client state belongs in Zustand stores under `packages/web/store/`, not in the UI package.
+- App islands live under `packages/web/app/components/<Name>/` (folder + `index.ts` each); named constant maps live in `ComponentName.constants.ts` (see `.cursor/rules/web-architecture.mdc`).
 - Code, comments, commits, and docs are in English.
 
 See `AGENTS.md` for contributor and agent guidelines.

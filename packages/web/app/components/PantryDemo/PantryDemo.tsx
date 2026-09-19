@@ -2,14 +2,22 @@
 
 import { Button, Card, Input } from "@smart-pantry/ui";
 import { useEffect, useState } from "react";
-import { AddItemModal } from "./AddItemModal";
-import { InventoryPagination } from "./InventoryPagination";
-import { RemoveItemModal } from "./RemoveItemModal";
+import { AddItemModal } from "@/app/components/AddItemModal";
+import { InventoryPagination } from "@/app/components/InventoryPagination";
 import {
-  calculateExpiryStatus,
-  type ExpiryStatus,
-} from "@/lib/expiryUtils";
-import type { CategoryFilter } from "@/lib/filterPantryItems";
+  CATEGORY_ACCENT_STYLES,
+  CATEGORY_BADGE_STYLES,
+  CATEGORY_FILTER_MESSAGE_KEYS,
+  CATEGORY_FILTERS,
+  CATEGORY_MESSAGE_KEYS,
+  EXPIRY_BADGE_STYLES,
+  EXPIRY_LABEL_KEYS,
+  SEARCH_DEBOUNCE_MS,
+  SELECT_CLASS_NAME,
+  SORT_MESSAGE_KEYS,
+} from "./PantryDemo.constants";
+import { RemoveItemModal } from "@/app/components/RemoveItemModal";
+import { calculateExpiryStatus } from "@/lib/expiryUtils";
 import {
   isPantrySortOption,
   PANTRY_SORT_OPTIONS,
@@ -17,68 +25,12 @@ import {
 } from "@/lib/sortPantryItems";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useTranslation } from "@/i18n/useTranslation";
-import type { MessageKey } from "@/i18n/messages";
+import type { CategoryFilter } from "@/lib/filterPantryItems";
 import { useInventoryFilterStore } from "@/store/useInventoryFilterStore";
 import {
-  type PantryCategory,
   type PantryItem,
   usePantryStore,
 } from "@/store/usePantryStore";
-
-const SEARCH_DEBOUNCE_MS = 300;
-
-const SELECT_CLASS_NAME =
-  "h-10 w-full min-w-[11rem] rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 sm:w-auto";
-
-const CATEGORY_FILTERS: readonly CategoryFilter[] = [
-  "all",
-  "pantry",
-  "fridge",
-  "freezer",
-];
-
-const SORT_MESSAGE_KEYS: Record<PantrySortOption, MessageKey> = {
-  "name-asc": "sort.nameAsc",
-  "expiry-asc": "sort.expiryAsc",
-  "quantity-desc": "sort.quantityDesc",
-};
-
-const CATEGORY_MESSAGE_KEYS: Record<PantryCategory, MessageKey> = {
-  pantry: "category.pantry",
-  fridge: "category.fridge",
-  freezer: "category.freezer",
-};
-
-const CATEGORY_FILTER_MESSAGE_KEYS: Record<CategoryFilter, MessageKey> = {
-  all: "filter.all",
-  pantry: "category.pantry",
-  fridge: "category.fridge",
-  freezer: "category.freezer",
-};
-
-const CATEGORY_ACCENT_STYLES: Record<PantryCategory, string> = {
-  pantry: "bg-amber-500",
-  fridge: "bg-sky-500",
-  freezer: "bg-indigo-500",
-};
-
-const CATEGORY_BADGE_STYLES: Record<PantryCategory, string> = {
-  pantry: "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200",
-  fridge: "bg-sky-50 text-sky-800 ring-1 ring-inset ring-sky-200",
-  freezer: "bg-indigo-50 text-indigo-800 ring-1 ring-inset ring-indigo-200",
-};
-
-const EXPIRY_LABEL_KEYS: Record<Exclude<ExpiryStatus, "none">, MessageKey> = {
-  expired: "expiry.expired",
-  warning: "expiry.warning",
-  fresh: "expiry.fresh",
-};
-
-const EXPIRY_BADGE_STYLES: Record<Exclude<ExpiryStatus, "none">, string> = {
-  expired: "bg-red-50 text-red-800 ring-1 ring-inset ring-red-200",
-  warning: "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200",
-  fresh: "bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200",
-};
 
 function formatExpiryDate(
   expiryDate: string,

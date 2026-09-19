@@ -4,6 +4,7 @@ import { Button, Card, Input } from "@smart-pantry/ui";
 import Link from "next/link";
 import { useState, useTransition, type FormEvent } from "react";
 import { signIn, signUp, type AuthActionResult } from "@/app/actions/auth";
+import { AUTH_ERROR_KEYS } from "./LoginForm.constants";
 import { isNextRedirectError } from "@/lib/auth/redirect";
 import { useTranslation } from "@/i18n/useTranslation";
 import type { MessageKey } from "@/i18n/messages";
@@ -13,13 +14,6 @@ type AuthMode = "signIn" | "signUp";
 export interface LoginFormProps {
   initialMode?: AuthMode;
 }
-
-const AUTH_ERROR_KEYS = new Set<MessageKey>([
-  "auth.error.invalidEmail",
-  "auth.error.passwordTooShort",
-  "auth.error.nameRequired",
-  "auth.error.nameTooShort",
-]);
 
 function resolveAuthMessage(
   t: (key: MessageKey) => string,

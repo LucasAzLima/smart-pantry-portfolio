@@ -1,4 +1,4 @@
-import { HomeContent } from "./components/HomeContent";
+import { HomeContent } from "@/app/components/HomeContent";
 import { readFullNameFromMetadata } from "@/lib/auth/userMetadata";
 import { createClient } from "@/lib/supabase/server";
 

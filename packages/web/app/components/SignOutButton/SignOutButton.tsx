@@ -2,7 +2,7 @@
 
 import { Button } from "@smart-pantry/ui";
 import { useState, useTransition } from "react";
-import { SignOutModal } from "./SignOutModal";
+import { SignOutModal } from "@/app/components/SignOutModal";
 import { signOut } from "@/app/actions/auth";
 import { isNextRedirectError } from "@/lib/auth/redirect";
 import { useTranslation } from "@/i18n/useTranslation";
