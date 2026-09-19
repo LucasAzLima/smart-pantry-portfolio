@@ -9,8 +9,9 @@ import {
   useTransition,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import { DeleteAccountModal } from "./DeleteAccountModal";
-import { SignOutModal } from "./SignOutModal";
+import { DeleteAccountModal } from "@/app/components/DeleteAccountModal";
+import { SignOutModal } from "@/app/components/SignOutModal";
+import { DELETE_ERROR_KEYS } from "./UserProfileMenu.constants";
 import { deleteAccount, signOut } from "@/app/actions/auth";
 import { isNextRedirectError } from "@/lib/auth/redirect";
 import { getUserInitials } from "@/lib/userInitials";
@@ -22,12 +23,6 @@ export interface UserProfileMenuProps {
   userName: string | null;
   userEmail: string;
 }
-
-const DELETE_ERROR_KEYS = new Set<MessageKey>([
-  "auth.error.notAuthenticated",
-  "auth.error.deleteUnavailable",
-  "auth.error.unexpected",
-]);
 
 function resolveDeleteError(
   t: (key: MessageKey) => string,

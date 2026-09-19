@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { LanguageSelector } from "./FloatingLanguageSelector";
-import { UserProfileMenu } from "./UserProfileMenu";
+import { LanguageSelector } from "@/app/components/FloatingLanguageSelector";
+import { UserProfileMenu } from "@/app/components/UserProfileMenu";
 import { useTranslation } from "@/i18n/useTranslation";
 
 export interface AppHeaderProps {

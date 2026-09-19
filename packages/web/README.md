@@ -8,14 +8,14 @@ Design tradeoffs are in the [repository README](../../README.md#engineering-deci
 
 ## Layout
 
-- `app/` — routes (RSC by default) and client islands under `app/components/`
+- `app/` — routes (RSC by default) and client islands under `app/components/<Name>/` (`Name.tsx`, `Name.test.tsx`, `Name.constants.ts`, `index.ts`)
 - `app/actions/` — Server Actions for sign in, sign up, sign out, and account deletion
 - `store/` — Zustand stores (`usePantryStore` ↔ Supabase or guest storage, `useLocaleStore`, inventory filters)
 - `i18n/` — `en-US` / `pt-BR` dictionaries and `useTranslation`
 - `lib/` — domain helpers, Supabase clients (`lib/supabase/`), guest storage, and auth helpers
 - `proxy.ts` — session refresh and auth redirects (Next.js 16 proxy; `/` and `/login` stay public)
 
-Shared UI is imported from [`@smart-pantry/ui`](../ui).
+Shared UI is imported from [`@smart-pantry/ui`](../ui). App islands each live in a folder with `index.ts`. Put named constants in `ComponentName.constants.ts`.
 
 ## Environment
 

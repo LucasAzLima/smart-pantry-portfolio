@@ -1,9 +1,9 @@
 "use client";
 
-import { AppHeader } from "./AppHeader";
-import { FloatingLanguageSelector } from "./FloatingLanguageSelector";
-import { GuestModeGate } from "./GuestModeGate";
-import { PantryDemo } from "./PantryDemo";
+import { AppHeader } from "@/app/components/AppHeader";
+import { FloatingLanguageSelector } from "@/app/components/FloatingLanguageSelector";
+import { GuestModeGate } from "@/app/components/GuestModeGate";
+import { PantryDemo } from "@/app/components/PantryDemo";
 import { useTranslation } from "@/i18n/useTranslation";
 
 export interface HomeContentProps {

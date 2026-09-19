@@ -17,7 +17,7 @@ Shared primitives live in `@smart-pantry/ui`. Follow `ui-component-with-storyboo
 | Layer | Path | Responsibility |
 | --- | --- | --- |
 | **Route / RSC** | `app/**/page.tsx`, `layout.tsx` | Layout, metadata, static structure. Default: Server Component. |
-| **Client island** | `app/components/` | `"use client"` for hooks, events, Zustand. Compose shared UI. Local UI state (`useState`) stays here. |
+| **Client island** | `app/components/<Name>/` | `"use client"` for hooks, events, Zustand. Compose shared UI. Local UI state (`useState`) stays here. Folder per component: `Name.tsx`, `Name.test.tsx`, `Name.constants.ts`, `index.ts`. |
 | **Store** | `store/` | Client app state and actions. Select slices; do not subscribe to the whole store. |
 | **Shared UI** | `packages/ui` | Dumb, accessible components. Props in, events out. No Zustand, no Next.js, no fetch. |
 | **Lib** | `lib/` (when needed) | Pure helpers: parse, format, validate. No React. |
@@ -53,7 +53,7 @@ export default function Home() {
 ```
 
 ```tsx
-// app/components/PantryDemo.tsx
+// app/components/PantryDemo/PantryDemo.tsx
 "use client";
 
 import { Button } from "@smart-pantry/ui";
@@ -63,11 +63,12 @@ import { usePantryStore } from "@/store/usePantryStore";
 ## Checklist (new feature)
 
 1. [ ] Route is an RSC unless the whole page must be interactive.
-2. [ ] Interactive UI is a client island under `app/components/`.
-3. [ ] Reusable visuals are in `@smart-pantry/ui` with stories + tests.
-4. [ ] Client state is a Zustand store with selectors; UI package stays dumb.
-5. [ ] Pure logic is in `lib/`, not inline in the page.
-6. [ ] No fetch inside `packages/ui`. No React Query unless client cache is required.
+2. [ ] Interactive UI is a client island under `app/components/<Name>/` (folder + `index.ts` for every component).
+3. [ ] Named constant maps/lists live in `ComponentName.constants.ts`; the `.tsx` stays render/interaction-focused.
+4. [ ] Reusable visuals are in `@smart-pantry/ui` with stories + tests.
+5. [ ] Client state is a Zustand store with selectors; UI package stays dumb.
+6. [ ] Pure logic is in `lib/`, not inline in the page.
+7. [ ] No fetch inside `packages/ui`. No React Query unless client cache is required.
 
 ## See also
 

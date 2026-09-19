@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Web architecture
 
-Reference layout: `app/page.tsx` (RSC) → `app/components/PantryDemo.tsx` (client) → `store/usePantryStore.ts` → `@smart-pantry/ui`.
+Reference layout: `app/page.tsx` (RSC) → `app/components/PantryDemo` (client) → `store/usePantryStore.ts` → `@smart-pantry/ui`.
 
 ## Decision tree
 
@@ -14,16 +14,25 @@ Reference layout: `app/page.tsx` (RSC) → `app/components/PantryDemo.tsx` (clie
 
 **New UI:**
 - Reusable across screens / Storybook → `@smart-pantry/ui` (skill: `ui-component-with-storybook`)
-- Used only in this app, composed from shared UI → `app/components/`
+- Used only in this app, composed from shared UI → `app/components/<Name>/`
 - Do not copy Button-like primitives into `web`
+
+**App component file layout (folders for every island):**
+- One folder per component under `app/components/` so the directory never mixes loose files and folders:
+  - `ComponentName/ComponentName.tsx`
+  - `ComponentName/ComponentName.test.tsx` (when present)
+  - `ComponentName/ComponentName.constants.ts` (named constant maps/lists/styles)
+  - `ComponentName/index.ts` re-exporting the public API
+- Import siblings via `@/app/components/OtherName` (through `index.ts`), not deep file paths.
+- Leave a one-off literal inline when it is not a reusable named block. Shared domain values still belong in `lib/`.
 
 **New client state:** Zustand store in `store/use<Name>Store.ts`. Select slices (see `PantryDemo`). Never put Zustand in `packages/ui`.
 
-**New React hook:** reusable across pages → `hooks/use<Name>.ts` (create the folder when needed). Tied to one component → keep it colocated.
+**New React hook:** reusable across pages → `hooks/use<Name>.ts` (create the folder when needed). Tied to one component → keep it colocated in that component folder.
 
 **Pure logic (no React):** `lib/<domain>.ts` (create when needed). Do not grow `page.tsx` with parsers or validators.
 
-**HTTP / server data:** not in the repo yet. When added, keep fetch in Server Components, Route Handlers, or `lib/` — never inside `@smart-pantry/ui`. Do not add React Query/SWR unless the feature needs client cache.
+**HTTP / server data:** prefer Server Components, Route Handlers, or `lib/` (including Supabase clients). Never fetch from `@smart-pantry/ui`. Do not add React Query/SWR unless the feature needs client cache.
 
 ## What NOT to do
 
@@ -31,3 +40,5 @@ Reference layout: `app/page.tsx` (RSC) → `app/components/PantryDemo.tsx` (clie
 - Do not create Context providers for data that belongs in Zustand.
 - Do not fetch or import Next.js APIs from `packages/ui`.
 - Do not put feature screens under `packages/ui`.
+- Do not leave new component files loose under `app/components/` — always create a folder + `index.ts`.
+- Do not grow `ComponentName.tsx` with large constant tables — move them to `ComponentName.constants.ts`.

@@ -2,8 +2,14 @@
 
 import { Button, Input, Modal } from "@smart-pantry/ui";
 import { useState, type FormEvent } from "react";
+import {
+  CATEGORIES,
+  CATEGORY_MESSAGE_KEYS,
+  SELECT_CLASS_NAME,
+  UNIT_MESSAGE_KEYS,
+  UNITS,
+} from "./AddItemModal.constants";
 import { useTranslation } from "@/i18n/useTranslation";
-import type { MessageKey } from "@/i18n/messages";
 import { maskExpiryDateInput } from "@/lib/expiryUtils";
 import {
   type PantryCategory,
@@ -11,26 +17,6 @@ import {
   type PantryUnit,
   usePantryStore,
 } from "@/store/usePantryStore";
-
-const UNITS: readonly PantryUnit[] = ["units", "kg", "g", "l", "ml"];
-const CATEGORIES: readonly PantryCategory[] = ["pantry", "fridge", "freezer"];
-
-const UNIT_MESSAGE_KEYS: Record<PantryUnit, MessageKey> = {
-  units: "unit.units",
-  kg: "unit.kg",
-  g: "unit.g",
-  l: "unit.l",
-  ml: "unit.ml",
-};
-
-const CATEGORY_MESSAGE_KEYS: Record<PantryCategory, MessageKey> = {
-  pantry: "category.pantry",
-  fridge: "category.fridge",
-  freezer: "category.freezer",
-};
-
-const selectClassName =
-  "h-10 w-full min-w-0 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2";
 
 export interface AddItemModalProps {
   open: boolean;
@@ -203,7 +189,7 @@ export function AddItemModal({
               id="item-unit"
               value={unit}
               onChange={(event) => setUnit(event.target.value as PantryUnit)}
-              className={selectClassName}
+              className={SELECT_CLASS_NAME}
               disabled={busy}
             >
               {UNITS.map((option) => (
@@ -227,7 +213,7 @@ export function AddItemModal({
               onChange={(event) =>
                 setCategory(event.target.value as PantryCategory)
               }
-              className={selectClassName}
+              className={SELECT_CLASS_NAME}
               disabled={busy}
             >
               {CATEGORIES.map((option) => (
