@@ -14,7 +14,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "storybook": "npm run storybook -w @smart-pantry/ui",
     "build-storybook": "npm run build-storybook -w @smart-pantry/ui",
-    "prepare": "husky"
+    "prepare": "node .husky/install.mjs"
   },
   "keywords": [],
   "author": "",
