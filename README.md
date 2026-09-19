@@ -141,8 +141,9 @@ Run these from the repository root:
 | `npm run lint` | Lint the web package |
 | `npm run test` | Run tests in all workspaces |
 | `npm run typecheck` | Type-check all packages |
+| `npm run test:e2e` | Run Playwright guest-pantry e2e (starts the web app) |
 
-A Husky **pre-commit** hook runs lint-staged on staged `packages/web` JS/TS files. Pull requests and pushes to `main` still run the full GitHub Actions suite (`typecheck`, `test`, `lint`, `build`). The `prepare` script skips Husky when `NODE_ENV=production` or `CI=true` (e.g. Vercel), so deploy installs do not require the Husky binary.
+A Husky **pre-commit** hook runs lint-staged on staged `packages/web` JS/TS files. Pull requests and pushes to `main` still run the full GitHub Actions suite (`typecheck`, `test`, `lint`, `build`, then `e2e`). The `prepare` script skips Husky when `NODE_ENV=production` or `CI=true` (e.g. Vercel), so deploy installs do not require the Husky binary.
 
 ## Conventions
 
